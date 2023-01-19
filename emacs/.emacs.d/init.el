@@ -1,3 +1,4 @@
+;; defaults
 (setq inhibit-startup-message t)
 
 (scroll-bar-mode -1)
@@ -7,11 +8,8 @@
 
 (menu-bar-mode -1)
 
-(setq visible-bell t)
-(set-face-attribute 'default nil :font "SauceCodePro Nerd Font")
+(set-face-attribute 'default nil :font "SauceCodePro Nerd Font" :height 140)
 
-
-(load-theme 'tango-dark)
 
 ;; Make ESC quit prompts
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
@@ -38,6 +36,8 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   '("986cdc701d133f7c6b596f06ab5c847bebdd53eb6bc5992e90446d2ddff2ad9e" default))
  '(package-selected-packages '(command-log-mode use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
@@ -47,3 +47,73 @@
  )
 
 (use-package command-log-mode)
+
+;; Install straight.el
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 6))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+(straight-use-package 'use-package)
+(setq straight-use-package-by-default t)
+
+;; org mode
+(use-package org)
+(use-package org-modern
+  :config (global-org-modern-mode))
+
+;; which-key
+(use-package which-key
+  :config (setq which-key-popup-type 'minibuffer))
+
+;; smex
+(use-package smex)
+
+;; evil
+(use-package evil
+  :ensure t
+  :init
+  (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
+  (setq evil-want-keybinding nil)
+  :config
+  (evil-mode 1))
+
+(use-package evil-collection
+  :after evil
+  :ensure t
+  :config
+  (evil-collection-init))
+(use-package evil-org
+  :init (evil-org-mode))
+
+;; ivy & counsel
+(use-package counsel)
+(use-package ivy
+  :init (ivy-mode))
+(use-package all-the-icons-ivy-rich
+  :config (setq all-the-icons-ivy-rich-icon t))
+(use-package ivy-rich
+  :init (ivy-rich-mode))
+
+;; projectile
+(use-package projectile)
+
+;; neotree
+(use-package neotree)
+
+;; mood-line
+(use-package mood-line
+  :config
+  (mood-line-mode))
+
+;; modus-themes
+(use-package modus-themes
+  :init (load-theme 'modus-vivendi-tinted))
