@@ -8,7 +8,7 @@
 
 (menu-bar-mode -1)
 
-(set-face-attribute 'default nil :font "SauceCodePro Nerd Font" :height 140)
+(set-face-attribute 'default nil :font "Hack" :height 160)
 
 
 ;; Make ESC quit prompts
@@ -37,7 +37,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
-   '("986cdc701d133f7c6b596f06ab5c847bebdd53eb6bc5992e90446d2ddff2ad9e" default))
+   '("1fab98300b100a19010734a14c4bf9b6712ffc8b9e1d7eca35f837adeeabf740" "53585ce64a33d02c31284cd7c2a624f379d232b27c4c56c6d822eff5d3ba7625" "986cdc701d133f7c6b596f06ab5c847bebdd53eb6bc5992e90446d2ddff2ad9e" default))
  '(package-selected-packages '(command-log-mode use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
@@ -72,7 +72,9 @@
 
 ;; which-key
 (use-package which-key
-  :config (setq which-key-popup-type 'minibuffer))
+  :config
+  (setq which-key-popup-type 'minibuffer)
+  (which-key-mode))
 
 ;; smex
 (use-package smex)
@@ -116,4 +118,11 @@
 
 ;; modus-themes
 (use-package modus-themes
-  :init (load-theme 'modus-vivendi-tinted))
+  :init (load-theme 'modus-operandi-tinted))
+
+;;; languages
+;; shell
+;; active Babel languages
+(org-babel-do-load-languages 'org-babel-load-languages '((shell . t)))
+;; go-mode
+(use-package go-mode)
