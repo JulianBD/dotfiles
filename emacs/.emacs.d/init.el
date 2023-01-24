@@ -230,6 +230,12 @@
   :after (treemacs magit)
   :ensure t)
 
+;; pdf-tools
+(use-package pdf-tools)
+
+;; org-noter
+(use-package org-noter)
+
 ;; mood-line
 (use-package mood-line
   :config
