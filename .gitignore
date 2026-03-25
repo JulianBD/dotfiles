@@ -1,0 +1,16 @@
+.DS_Store
+
+# Emacs generated files (belt-and-suspenders with dot_emacs.d/.gitignore)
+dot_emacs.d/elpa/
+dot_emacs.d/eln-cache/
+dot_emacs.d/auto-save-list/
+dot_emacs.d/backups/
+dot_emacs.d/etc/
+dot_emacs.d/transient/
+dot_emacs.d/package-installed
+dot_emacs.d/nerd-fonts-checked
+dot_emacs.d/history
+dot_emacs.d/.chatgpt-shell.el
+
+# Generated at runtime by theme pipeline
+dot_config/sketchybar/colors.lua

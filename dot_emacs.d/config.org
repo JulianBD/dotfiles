@@ -1,0 +1,4754 @@
+#+TITLE: Julian's Emacs Configuration
+#+AUTHOR: Julian Dorsey
+#+PROPERTY: header-args :tangle yes :noweb yes
+#+OPTIONS: toc:2
+#+STARTUP: overview
+
+[[file:banner.txt][ASCII Art Banner]]
+
+* About
+
+This is my literate Emacs configuration, designed with ADHD-friendly workflows, comprehensive note-taking, and enhanced discoverability. The configuration prioritizes frictionless interaction and progressive complexity, making it ideal for Emacs newcomers while remaining powerful for advanced users.
+
+** Quick Start
+
+1. Place a minimal init.el in your ~/.emacs.d directory:
+   #+begin_src emacs-lisp :tangle no
+   ;; Initialize package system
+   (require 'package)
+   (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+   (package-initialize)
+
+   ;; Install use-package if needed
+   (unless (package-installed-p 'use-package)
+     (package-refresh-contents)
+     (package-install 'use-package))
+
+   ;; Install org if needed
+   (use-package org :ensure t)
+
+   ;; Load the literate config
+   (org-babel-load-file
+    (expand-file-name "config.org" user-emacs-directory))
+   #+end_src
+
+2. Place config.org in your ~/.emacs.d directory
+3. Start Emacs - it will:
+   - Install required packages
+   - Tangle the org file into individual .el files
+   - Load the configuration
+
+** Configuration Structure
+
+This configuration is organized as a literate document using Org Babel to tangle code blocks into the appropriate Emacs Lisp files. The modular structure allows for targeted testing and maintains clean separation of concerns.
+
+** Design Philosophy
+
+*Ergonomics First*: Every feature is designed to reduce friction and cognitive load, supporting habit formation over memorization.
+
+*Discoverability Over Efficiency*: Extensive use of which-key and visual feedback helps users discover features naturally rather than requiring extensive documentation study.
+
+*Progressive Complexity*: Simple defaults that can grow more sophisticated as users become comfortable with the system.
+
+*ADHD-Friendly Workflows*: Minimal decision-making during capture, consistent interfaces, and temporal organization over complex categorization.
+
+** Configuration Structure
+
+This literate configuration generates the following file structure:
+
+#+begin_example
+~/.emacs.d/
+├── init.el                    # Main configuration entry point (tangled)
+├── lisp/                      # Modular configuration files (tangled)
+│   ├── jd-base.el            # Core settings, package management, backups
+│   ├── jd-ui.el              # Theme, fonts, nerd-icons, which-key
+│   ├── jd-edit.el            # Basic Evil mode configuration
+│   ├── jd-evil-extensions.el # Evil packages (snipe, avy, surround, mc)
+│   ├── jd-evil-keypad.el     # Evil Keypad with which-key integration
+│   ├── jd-navigation.el      # Window/buffer/tab management with ace-window
+│   ├── jd-completion.el      # Vertico, Consult, Corfu, Marginalia, Orderless
+│   ├── jd-notes.el           # Denote, markdown-mode, eshell integration
+│   ├── jd-journal.el         # ADHD-friendly journaling with tempel templates
+│   ├── jd-ai.el              # GPTel, ChatGPT-shell, GitHub Copilot
+│   ├── jd-themes.el          # Theme management and fontaine integration
+│   ├── jd-minimal-modeline.el # Minimal modeline implementation
+│   ├── jd-modeline.el        # Comprehensive modeline with Evil state
+│   └── jd-dev.el             # Development tools, tree-sitter, magit
+├── etc/
+│   ├── custom.el             # Auto-generated customizations
+│   └── templates/            # Tempel templates for structured capture
+└── config.org               # This literate configuration file
+#+end_example
+
+* Table of Contents :toc_2_gh:
+- [[#about][About]]
+- [[#main-configuration-initel][Main Configuration (init.el)]]
+- [[#core-settings-jd-baseel][Core Settings (jd-base.el)]]
+- [[#visual-interface-jd-uiel][Visual Interface (jd-ui.el)]]
+- [[#evil-mode-foundation-jd-editel][Evil Mode Foundation (jd-edit.el)]]
+- [[#evil-extensions-jd-evil-extensionsel][Evil Extensions (jd-evil-extensions.el)]]
+- [[#evil-keypad-jd-evil-keypadel][Evil Keypad (jd-evil-keypad.el)]]
+- [[#navigation-system-jd-navigationel][Navigation System (jd-navigation.el)]]
+- [[#completion-framework-jd-completionel][Completion Framework (jd-completion.el)]]
+- [[#org-mode-configuration-jd-orgel][Org Mode Configuration (jd-org.el)]]
+- [[#note-taking-system-jd-notesel][Note-Taking System (jd-notes.el)]]
+- [[#development-tools-jd-devel][Development Tools (jd-dev.el)]]
+- [[#journaling-system-jd-journalel][Journaling System (jd-journal.el)]]
+- [[#ai-integration-jd-aiel][AI Integration (jd-ai.el)]]
+- [[#theme-management-jd-themesel][Theme Management (jd-themes.el)]]
+- [[#minimal-modeline-jd-minimal-modelineel][Minimal Modeline (jd-minimal-modeline.el)]]
+- [[#comprehensive-modeline-jd-modelineel][Comprehensive Modeline (jd-modeline.el)]]
+
+* Main Configuration (init.el)
+
+The main configuration file serves as the entry point and orchestrates the loading of all modules in the proper dependency order.
+
+** File header and lexical binding
+
+Every Emacs Lisp file should declare lexical binding for better performance and cleaner scoping. The header also establishes copyright and basic commentary about the configuration's purpose.
+
+#+begin_src emacs-lisp :tangle init.el
+;;; init.el --- Julian's Emacs configuration -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; This is a modular Emacs configuration that prioritizes:
+;; - Clean, maintainable organization
+;; - ADHD-friendly note capture
+;; - Evil mode integration
+;; - Modern completion framework
+
+;;; Code:
+#+end_src
+
+** Startup performance optimization
+
+During Emacs startup, garbage collection can cause noticeable pauses. By temporarily increasing the threshold to 100MB, we reduce these interruptions. The original value is saved so it can be restored after initialization completes.
+
+#+begin_src emacs-lisp :tangle init.el
+(defvar jd--initial-gc-threshold gc-cons-threshold
+  "Initial value of `gc-cons-threshold' at startup.")
+(setq gc-cons-threshold 100000000)
+#+end_src
+
+** Load path configuration
+
+All custom modules live in the =lisp/= subdirectory. Adding this to the load path allows =require= statements to find our custom modules.
+
+#+begin_src emacs-lisp :tangle init.el
+(add-to-list 'load-path (expand-file-name "lisp"
+                                         (file-name-directory load-file-name)))
+#+end_src
+
+** Package management setup
+
+The package system needs configuration before any modules try to load packages. We add MELPA for the latest packages and GNU ELPA for stable ones, then ensure =use-package= is available as our primary package management tool.
+
+#+begin_src emacs-lisp :tangle init.el
+(require 'package)
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
+(package-initialize)
+
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+(eval-when-compile
+  (require 'use-package))
+(require 'use-package-ensure)
+
+(setq use-package-always-ensure nil)
+#+end_src
+
+This helper function checks whether packages need to be installed by looking for a marker file. This prevents unnecessary network calls on every startup while ensuring packages are available when needed.
+
+#+begin_src emacs-lisp :tangle init.el
+(defun jd--package-install-needed-p ()
+  "Return t if we need to install packages (first run)."
+  (not (file-exists-p (expand-file-name "package-installed" user-emacs-directory))))
+#+end_src
+
+** Module loading sequence
+
+The order of module loading is crucial to prevent dependency issues. Base settings establish fundamentals, UI elements configure appearance, Evil mode provides editing capabilities, and specialized modules add domain-specific features.
+
+#+begin_src emacs-lisp :tangle init.el
+(require 'jd-base)
+(require 'jd-ui)
+(require 'jd-edit)
+(require 'jd-evil-extensions)
+(require 'jd-evil-keypad)
+(require 'jd-navigation)
+(require 'jd-completion)
+(require 'jd-org)
+(require 'jd-notes)
+(require 'jd-dev)
+;; Load modular journal system
+(require 'jd-journal-core)
+(require 'jd-journal-templates)
+(require 'jd-journal-ai)
+(require 'jd-journal-keybindings)
+;; Load AI module with error handling
+(condition-case err
+    (require 'jd-ai)
+  (error (message "Warning: Could not load jd-ai module: %s" err)))
+#+end_src
+
+** Customization file separation
+
+Emacs's customization system can clutter the init file with auto-generated code. By separating it into its own file, we keep the main configuration clean and readable.
+
+#+begin_src emacs-lisp :tangle init.el
+(setq custom-file (expand-file-name "etc/custom.el"
+                                  (file-name-directory load-file-name)))
+(when (file-exists-p custom-file)
+  (load custom-file))
+#+end_src
+
+** Garbage collection restoration
+
+Once all modules are loaded, we restore the garbage collection threshold to a reasonable value for normal operation. This balances memory usage with performance during regular editing.
+
+#+begin_src emacs-lisp :tangle init.el
+(setq gc-cons-threshold (or jd--initial-gc-threshold 800000))
+
+;;; init.el ends here
+#+end_src
+
+* Core Settings (jd-base.el)
+
+The base module establishes fundamental settings that all other modules depend on. This includes package management infrastructure, basic Emacs behavior configuration, and essential file handling setup.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+;;; jd-base.el --- Core settings and package management -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Basic Emacs settings and package management setup.
+;; This provides the foundation for the rest of the configuration.
+
+;;; Code:
+#+end_src
+
+** Package management behavior
+
+Rather than using =use-package='s built-in deferral, we disable it to ensure packages are available when modules need them. Verbose output helps with debugging package loading issues.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(setq use-package-always-defer nil)
+(setq use-package-verbose t)
+#+end_src
+
+The marker file approach dramatically improves startup time on subsequent runs while ensuring packages are available when needed. Only on first run do we refresh package contents from repositories.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(unless (file-exists-p (expand-file-name "package-installed"
+                                        (file-name-directory user-emacs-directory)))
+  (package-refresh-contents)
+  (with-temp-file (expand-file-name "package-installed"
+                                   (file-name-directory user-emacs-directory))
+    (insert "Packages refreshed on first run.")))
+#+end_src
+
+** Emacs version requirements
+
+This configuration takes advantage of modern Emacs features like improved JSON parsing, better Unicode support, and tree-sitter integration. The version check prevents cryptic errors by failing fast with a clear message.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(when (< emacs-major-version 29)
+  (error "This configuration requires Emacs 29 or newer"))
+#+end_src
+
+** Interface behavior
+
+The splash screen adds unnecessary startup time and provides little value for experienced users. Starting with fundamental mode instead of the Lisp-oriented scratch buffer provides a cleaner initial experience.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(setq inhibit-splash-screen t)
+(setq initial-major-mode 'fundamental-mode)
+(setq display-time-default-load-average nil)
+#+end_src
+
+** File handling and auto-revert
+
+Modern workflows often involve external tools modifying files. Auto-revert keeps buffers synchronized with the file system, while the polling avoidance improves performance on systems with many files.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(setq auto-revert-avoid-polling t)
+(setq auto-revert-interval 5)
+(setq auto-revert-check-vc-info t)
+(global-auto-revert-mode)
+#+end_src
+
+** Minibuffer and navigation
+
+Preserving minibuffer history between sessions reduces repetitive typing. Control-based window movement provides intuitive navigation between split windows.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(savehist-mode)
+
+(windmove-default-keybindings 'control)
+#+end_src
+
+** Text behavior modernization
+
+Modern writing doesn't use double spaces after sentences. Context menus in GUI mode provide helpful right-click functionality.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(setq sentence-end-double-space nil)
+
+(when (display-graphic-p)
+  (context-menu-mode))
+#+end_src
+
+** Centralized backup system
+
+Instead of cluttering the file system with backup files alongside originals, this system creates a mirror directory structure within =~/.emacs.d/backups/=. This keeps working directories clean while preserving the ability to recover from accidental changes.
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(defun jd--backup-file-name (fpath)
+  "Return a new backup path for FPATH.
+Creates necessary directories if they don't exist."
+  (let* ((backup-root-dir (expand-file-name "backups/" user-emacs-directory))
+         (file-path (replace-regexp-in-string "[A-Za-z]:" "" fpath))
+         (backup-file-path (replace-regexp-in-string "//" "/"
+                                                   (concat backup-root-dir file-path "~"))))
+    (make-directory (file-name-directory backup-file-path) t)
+    backup-file-path))
+
+(setq make-backup-file-name-function 'jd--backup-file-name)
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-base.el
+(provide 'jd-base)
+;;; jd-base.el ends here
+#+end_src
+
+* Visual Interface (jd-ui.el)
+
+The UI module transforms Emacs from its default appearance into a modern, clean interface that supports focused work and reduces cognitive load.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+;;; jd-ui.el --- Theme and visual elements -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Configuration for visual aspects of Emacs including theme,
+;; fonts, UI enhancements, and modeline customization.
+
+;;; Code:
+#+end_src
+
+** Interface minimalism
+
+Traditional UI chrome adds little value in modern workflows. Removing menu bars, toolbars, and scroll bars maximizes screen real estate for content and creates a distraction-free environment that's particularly beneficial for sustained writing and coding sessions.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(menu-bar-mode -1)
+(when (fboundp 'tool-bar-mode)
+  (tool-bar-mode -1))
+(when (fboundp 'scroll-bar-mode)
+  (scroll-bar-mode -1))
+#+end_src
+
+** Mode line information
+
+Line and column numbers provide essential position information without requiring visual scanning of line number columns. This gives spatial awareness within files while maintaining a clean interface.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(setq line-number-mode t)
+(setq column-number-mode t)
+#+end_src
+
+** Visual refinements
+
+These settings improve the overall visual experience by refining how Emacs handles various display elements. Buffer boundaries are indicated on the left side, and underlines are properly positioned.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(setq x-underline-at-descent-line nil)
+(setq switch-to-buffer-obey-display-actions t)
+(setq show-trailing-whitespace nil)
+(setq indicate-buffer-boundaries 'left)
+#+end_src
+
+** Enhanced scrolling behavior
+
+Modern scrolling behaviors provide smooth, predictable navigation. Pixel-precise scrolling eliminates jarring jumps, while tilt support enables horizontal scrolling on capable devices.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(setq mouse-wheel-tilt-scroll t)
+(setq mouse-wheel-flip-direction t)
+(pixel-scroll-precision-mode)
+#+end_src
+
+** Cursor and highlighting
+
+A non-blinking cursor reduces visual distractions during extended editing sessions. This creates a more stable visual environment that supports sustained focus.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(blink-cursor-mode -1)
+#+end_src
+
+** Context-aware line numbers
+
+Line numbers appear automatically in programming modes where they're most useful for debugging and code navigation, while text modes remain clean for writing-focused tasks.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(add-hook 'prog-mode-hook 'display-line-numbers-mode)
+(setq display-line-numbers-width 3)
+#+end_src
+
+** Text mode enhancements
+
+Visual line mode provides natural line wrapping for text editing, making prose writing more comfortable by wrapping at window boundaries rather than hard line breaks.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(add-hook 'text-mode-hook 'visual-line-mode)
+#+end_src
+
+** Current line highlighting
+
+Subtle highlighting of the current line provides visual context for cursor position in both text and programming modes without being overwhelming or distracting.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(let ((hl-line-hooks '(text-mode-hook prog-mode-hook)))
+  (mapc (lambda (hook) (add-hook hook 'hl-line-mode)) hl-line-hooks))
+#+end_src
+
+** Intelligent tab bar configuration
+
+The tab bar shows tabs only when multiple tabs exist, reducing clutter in single-tab workflows. The configuration includes system information aligned to the right side with real-time clock display.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(setq tab-bar-show 1)
+(add-to-list 'tab-bar-format 'tab-bar-format-align-right 'append)
+(add-to-list 'tab-bar-format 'tab-bar-format-global 'append)
+(setq display-time-format "%a %F %T")
+(setq display-time-interval 1)
+(display-time-mode)
+#+end_src
+
+** Font management integration
+
+Font configuration is handled by the specialized =jd-themes.el= module, but we maintain a deferred fontaine setup here for backward compatibility and integration with the theme system.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(use-package fontaine
+  :defer t)
+#+end_src
+
+** Theme system integration
+
+Theme management is delegated to the specialized =jd-themes.el= module, which provides more sophisticated theme switching and customization features while keeping this module focused on interface basics.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(require 'jd-themes)
+(jd-themes-setup)
+#+end_src
+
+** Nerd Icons setup with intelligent detection
+
+Icon support requires Nerd Fonts to be installed system-wide. This configuration includes intelligent detection of existing installations and graceful installation prompting only when needed.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(use-package nerd-icons
+  :ensure t
+  :config
+  (defvar jd-nerd-fonts-marker-file
+    (expand-file-name "nerd-fonts-checked" user-emacs-directory)
+    "File to mark that we've already checked for nerd fonts.")
+
+  (unless (file-exists-p jd-nerd-fonts-marker-file)
+    (if (or (file-exists-p (expand-file-name "~/.local/share/fonts/NerdFonts/Symbols-2048-em Nerd Font Complete.ttf"))
+            (file-exists-p (expand-file-name "~/Library/Fonts/Symbols Nerd Font Complete.ttf"))
+            (file-exists-p (expand-file-name "~/Library/Fonts/SymbolsNerdFontComplete-Medium.ttf")))
+        (with-temp-file jd-nerd-fonts-marker-file
+          (insert "Nerd fonts were found installed."))
+      (when (and (display-graphic-p)
+                 (yes-or-no-p "Nerd Font icons aren't installed. Install them now? "))
+        (nerd-icons-install-fonts t)
+        (with-temp-file jd-nerd-fonts-marker-file
+          (insert "Nerd fonts were installed."))))))
+#+end_src
+
+** Custom comprehensive modeline
+
+Our comprehensive modeline provides detailed information with visual styling, evil state indicators, and project context while maintaining aesthetic appeal.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(use-package jd-modeline
+  :ensure nil
+  :load-path "lisp/"
+  :config
+  (jd-modeline-mode 1))
+#+end_src
+
+** Which-Key discovery system
+
+The =which-key= package transforms Emacs from a system requiring memorization into one supporting discovery. This configuration provides categorized command groupings and clear visual hierarchy.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(use-package which-key
+  :custom
+  (which-key-show-prefix 'echo)
+  (which-key-compute-remaps t)
+  (which-key-use-C-h-commands t)
+  (which-key-show-docstrings nil)
+  (which-key-max-display-columns nil)
+  (which-key-max-description-length 35)
+  (which-key-separator " → ")
+  (which-key-sort-order 'which-key-key-order)
+
+  :config
+  (which-key-mode)
+#+end_src
+
+Prefix descriptions help organize the command space into logical groups, making discovery more intuitive for both beginners and experts discovering new functionality.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+  (which-key-add-key-based-replacements "C-c p" "Project")
+  (which-key-add-key-based-replacements "C-c t" "Tabs")
+  (which-key-add-key-based-replacements "C-c T" "Themes")
+  (which-key-add-key-based-replacements "C-c w" "Windows")
+  (which-key-add-key-based-replacements "C-c b" "Buffers")
+  (which-key-add-key-based-replacements "C-c f" "Files")
+  (which-key-add-key-based-replacements "C-c n" "Notes")
+  (which-key-add-key-based-replacements "C-x 8" "Unicode")
+  (which-key-add-key-based-replacements "C-x t" "Tabs")
+  (which-key-add-key-based-replacements "C-x r" "Registers/Rectangles")
+  (which-key-add-key-based-replacements "C-x v" "Version Control")
+  (which-key-add-key-based-replacements "C-h" "Help")
+  (which-key-add-key-based-replacements "M-g" "Go/Navigation")
+  (which-key-add-key-based-replacements "M-s" "Search")
+#+end_src
+
+The replacement system groups related commands under common prefixes, making the command space more navigable. For example, all Projectile commands appear under =proj/=, and all Magit commands under =git/=.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+  (setq which-key-replacement-alist
+        '(((nil . "\\`projectile-") . (nil . "proj/"))
+          ((nil . "\\`org-") . (nil . "org/"))
+          ((nil . "\\`magit-") . (nil . "git/"))
+          ((nil . "\\`consult-") . (nil . "search/"))
+          ((nil . "\\`embark-") . (nil . "act/"))
+          ((nil . "\\`vertico-") . (nil . "cmp/"))
+          ((nil . "\\`corfu-") . (nil . "cmp/"))
+          ((nil . "\\`windmove-\\(.+\\)\\'") . (nil . "win/\\1"))
+          ((nil . "\\`tab-bar-\\(.+\\)\\'") . (nil . "tab/\\1"))
+          ((nil . "\\`switch-to-\\(.+\\)\\'") . (nil . "goto/\\1"))
+          ((nil . "\\`find-\\(.+\\)\\'") . (nil . "find/\\1"))
+          ((nil . "\\`write-\\(.+\\)\\'") . (nil . "write/\\1"))
+          ((nil . "\\`kill-\\(.+\\)buffer\\(.+\\)?\\'") . (nil . "buf/kill-\\1\\2"))
+          ((nil . "\\`buffer-\\(.+\\)\\'") . (nil . "buf/\\1"))
+          ((nil . "\\`isearch-\\(.+\\)\\'") . (nil . "search/\\1"))
+          ((nil . "\\`query-replace\\(.+\\)?\\'") . (nil . "replace\\1")))))
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-ui.el
+(provide 'jd-ui)
+;;; jd-ui.el ends here
+#+end_src
+
+* Evil Mode Foundation (jd-edit.el)
+
+The edit module provides Evil mode integration and editing enhancements that make Emacs behave more like Vim while adding modern editing conveniences. This foundation enables efficient modal editing while preserving Emacs' extensibility.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+;;; jd-edit.el --- Editing experience -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Evil mode configuration and editing enhancements.
+;; Makes Emacs behave more like Vim while adding other
+;; editing improvements.
+
+;;; Code:
+#+end_src
+
+** Evil mode foundation
+
+Evil mode provides Vi/Vim emulation in Emacs, allowing users to leverage their existing muscle memory while gaining access to Emacs' powerful features. The configuration carefully balances Vi compatibility with Emacs integration.
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+(use-package evil
+  :init
+  ;; These settings must be set before loading evil
+  (setq evil-want-integration t)
+  (setq evil-want-keybinding nil)
+  (setq evil-respect-visual-line-mode t)
+  (setq evil-undo-system 'undo-redo)
+  ;; Enable this if you want C-u to scroll up, more like pure Vim
+  ;(setq evil-want-C-u-scroll t)
+
+  :config
+  (evil-mode)
+
+  ;; If you use Magit, start editing in insert state
+  (add-hook 'git-commit-setup-hook 'evil-insert-state)
+
+  ;; Configuring initial major mode for some modes
+  (evil-set-initial-state 'eat-mode 'emacs)
+  (evil-set-initial-state 'vterm-mode 'emacs))
+#+end_src
+
+** Evil collection integration
+
+Evil Collection ensures consistent keybindings across all of Emacs by providing Evil-mode integration for many built-in modes and popular packages.
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+;; Evil-collection for consistent keybindings across Emacs
+(use-package evil-collection
+  :after evil
+  :config
+  (evil-collection-init))
+#+end_src
+
+** Evil Org mode integration
+
+Specialized Evil mode support for Org mode provides Vi-like editing capabilities while respecting Org mode's unique features and workflows.
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+;; Evil-Org for org-mode integration
+(use-package evil-org
+  :after (evil org)
+  :hook (org-mode . (lambda () evil-org-mode))
+  :config
+  (require 'evil-org-agenda)
+  (evil-org-agenda-set-keys))
+#+end_src
+
+** Evil Keypad configuration
+
+Evil Keypad provides Spacemacs-like key bindings that make complex commands accessible through mnemonic key sequences rather than modifier combinations.
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+;; Evil-Keypad for spacemacs-like keybindings
+(use-package evil-keypad
+  :config
+  (define-key evil-normal-state-map (kbd "SPC") #'evil-keypad-start)
+  (define-key evil-visual-state-map (kbd "SPC") #'evil-keypad-start)
+  (define-key evil-emacs-state-map (kbd "SPC") #'evil-keypad-start))
+#+end_src
+
+** Motion enhancements
+
+Avy and Ace-window provide quick navigation capabilities that complement Evil mode's motion commands with modern, efficient movement options.
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+;;; ----------------------------------------------------------------------------
+;;; Motion enhancements
+;;; ----------------------------------------------------------------------------
+
+;; Avy for quick navigation
+(use-package avy
+  :demand t
+  :bind (("C-c j" . avy-goto-line)
+         ("s-j"   . avy-goto-char-timer)))
+
+;; Ace-window for easy window navigation
+(use-package ace-window
+  :config
+  (global-set-key (kbd "M-o") 'ace-window)
+  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
+#+end_src
+
+** Common editing enhancements
+
+Standard editing improvements that work alongside Evil mode to provide a complete editing environment.
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+;;; ----------------------------------------------------------------------------
+;;; Common editing enhancements
+;;; ----------------------------------------------------------------------------
+
+;; Enable CUA standard keys for modern editing
+(cua-mode)
+
+;; Wgrep for editable grep results
+(use-package wgrep
+  :config
+  (setq wgrep-auto-save-buffer t))
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-edit.el
+(provide 'jd-edit)
+;;; jd-edit.el ends here
+#+end_src
+
+* Evil Extensions (jd-evil-extensions.el)
+
+The Evil Extensions module enhances the core Evil mode experience with additional packages that provide advanced navigation, editing capabilities, and quality-of-life improvements for Vim users.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;;; jd-evil-extensions.el --- Evil mode enhancements -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Enhanced Evil mode experience with additional packages for
+;; navigation, editing, and general quality-of-life improvements.
+
+;;; Code:
+#+end_src
+
+** Commenting enhancements
+
+Evil Nerd Commenter provides powerful commenting functionality that works consistently across all major modes while respecting Evil's modal editing paradigm.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Nerd Commenter - powerful commenting/uncommenting
+(use-package evil-nerd-commenter
+  :ensure t
+  :bind ("M-;" . evilnc-comment-or-uncomment-lines))
+#+end_src
+
+** Interactive Evil tutorial
+
+Evil Tutor helps new users learn Evil mode through an interactive tutorial similar to Vim's built-in vimtutor.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Tutor - learn Evil with an interactive tutorial
+(use-package evil-tutor
+  :ensure t)
+  ;; Start with: M-x evil-tutor-start
+#+end_src
+
+** Multiple cursor support
+
+Evil Multiple Cursors brings Sublime Text-style multiple cursor editing to Evil mode, with additional functionality provided by Evil MC Extras.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Multiple Cursors
+(use-package evil-mc
+  :ensure t
+  :config
+  (global-evil-mc-mode 1))
+
+;; Evil MC Extras - additional functionality for multiple cursors
+(use-package evil-mc-extras
+  :ensure t
+  :after evil-mc
+  :config
+  (evil-mc-extras-mode 1))
+#+end_src
+
+** Structured editing support
+
+Evil Cleverparens provides intelligent handling of parentheses and other delimiters in Lisp-like languages, making structural editing more natural in Evil mode.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Cleverparens - smart handling of parentheses
+(use-package evil-cleverparens
+  :ensure t
+  :hook ((emacs-lisp-mode . evil-cleverparens-mode)
+         (clojure-mode . evil-cleverparens-mode)
+         (lisp-mode . evil-cleverparens-mode)))
+#+end_src
+
+** Search highlighting
+
+Evil Search Highlight Persist maintains search highlights until explicitly cleared, improving visibility of search matches across the buffer.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Search Highlight Persist - keep search highlights until cleared
+(use-package evil-search-highlight-persist
+  :ensure t
+  :init
+  ;; Silence warnings from highlight.el
+  (with-no-warnings
+    (require 'highlight nil t))
+  :config
+  (global-evil-search-highlight-persist t)
+  ;; Clear highlights with C-l
+  :bind (:map evil-normal-state-map
+         ("C-l" . evil-search-highlight-persist-remove-all)))
+#+end_src
+
+** Enhanced motion commands
+
+Evil Snipe extends Evil's f/t motions with more powerful two-character versions, while Evil Avy provides quick navigation to visible text using character-based hints.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Snipe - enhanced f/t motions
+(use-package evil-snipe
+  :ensure t
+  :config
+  (evil-snipe-mode 1)
+  (evil-snipe-override-mode 1))
+
+;; Evil Avy - jumping to text using avy
+(use-package evil-avy
+  :ensure t
+  :after (evil avy)
+  :config
+  ;; Add avy bindings to evil states
+  (define-key evil-normal-state-map (kbd "s") 'avy-goto-char-timer)
+  (define-key evil-normal-state-map (kbd "S") 'avy-goto-word-1)
+  (define-key evil-normal-state-map (kbd "g l") 'avy-goto-line))
+
+;; Avy itself for additional configuration
+(use-package avy
+  :ensure t
+  :config
+  (setq avy-timeout-seconds 0.3)        ; Show targets after typing for 0.3s
+  (setq avy-background t)               ; Darken background when showing targets
+  (setq avy-all-windows t)              ; Allow jumping between windows
+  (setq avy-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l ?q ?w ?e ?r ?t ?y ?u ?i ?o ?p)))
+#+end_src
+
+** Text object manipulation
+
+Evil Surround provides powerful commands for manipulating surrounding delimiters (parentheses, quotes, tags, etc.), similar to vim-surround.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Surround - manipulate surroundings
+(use-package evil-surround
+  :ensure t
+  :config
+  (global-evil-surround-mode 1))
+#+end_src
+
+** Visual selection search
+
+Evil Visualstar enables searching for the current visual selection using * and #, bringing a powerful Vim plugin feature to Evil mode.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+;; Evil Visualstar - search for visual selection
+(use-package evil-visualstar
+  :ensure t
+  :config
+  (global-evil-visualstar-mode))
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-extensions.el
+(provide 'jd-evil-extensions)
+;;; jd-evil-extensions.el ends here
+#+end_src
+
+* Evil Keypad (jd-evil-keypad.el)
+
+The Evil Keypad module provides Spacemacs-like key bindings that make Emacs commands accessible through mnemonic key sequences instead of modifier combinations. This approach improves discoverability and reduces keyboard strain while maintaining Evil mode's efficiency.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-keypad.el
+;;; jd-evil-keypad.el --- Enhanced Evil Keypad configuration -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Configuration for Evil Keypad with enhanced discoverability
+;; for note-taking and general Emacs commands.
+
+;;; Code:
+
+;; Ensure dependencies are loaded
+(require 'which-key)
+(require 'evil-keypad)
+#+end_src
+
+** Basic Evil Keypad configuration
+
+Evil Keypad transforms the spacebar into a command prefix that provides modifier-free access to Emacs commands. This configuration enables it in normal, visual, and emacs states for consistent access.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-keypad.el
+;;; ----------------------------------------------------------------------------
+;;; Evil Keypad Configuration
+;;; ----------------------------------------------------------------------------
+
+;; Activate Evil Keypad in normal, visual, and emacs states
+(setq evil-keypad-activation-states '(normal visual emacs))
+
+;; Set activation trigger to SPC
+(setq evil-keypad-activation-trigger "SPC")
+
+;; Configure prefix help command to use which-key-show-keymap
+;; This makes C-h after a prefix show all available commands in that prefix
+(setq evil-keypad-prefix-help-command #'which-key-show-keymap)
+
+;; Set basic which-key parameters (without getting too fancy)
+(setq which-key-idle-delay 0.3)
+
+;; Register C-c prefixes so they have good descriptions
+(which-key-add-key-based-replacements "C-c a" "AI Assistant")
+(which-key-add-key-based-replacements "C-c p" "Project")
+(which-key-add-key-based-replacements "C-c w" "Windows")
+(which-key-add-key-based-replacements "C-c b" "Buffers")
+(which-key-add-key-based-replacements "C-c t" "Tabs")
+(which-key-add-key-based-replacements "C-c T" "Themes")
+(which-key-add-key-based-replacements "C-c j" "Journal")
+(which-key-add-key-based-replacements "C-c n" "Notes")
+
+;; Enable Evil Keypad globally
+(evil-keypad-global-mode 1)
+#+end_src
+
+** Which-Key integration
+
+Which-Key provides real-time help for available key bindings, making the command space more discoverable. This section configures the display and organization of command descriptions.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-keypad.el
+;;; ----------------------------------------------------------------------------
+;;; Which-Key Integration
+;;; ----------------------------------------------------------------------------
+
+;; Enable which-key mode if not already enabled
+(which-key-mode)
+
+;; Set which-key popup to appear faster when using Evil Keypad
+(setq which-key-idle-delay 0.2)        ; Default popup delay
+(setq which-key-idle-secondary-delay 0.05) ; Delay for subsequent popups
+
+;; Customize which-key display
+(setq which-key-sort-order 'which-key-key-order-alpha) ; Alphabetical order
+(setq which-key-add-column-padding 1)   ; Padding between columns
+(setq which-key-max-display-columns nil) ; Adjust based on frame width
+
+;; Group which-key descriptions for better organization
+(setq which-key-replacement-alist
+      '(
+        ;; Note-taking related groups
+        ((nil . "\\`denote-\\(.+\\)\\'") . (nil . "denote/\\1"))
+        ((nil . "\\`jd-journal-\\(.+\\)\\'") . (nil . "journal/\\1"))
+
+        ;; Buffer commands
+        ((nil . "\\`buffer-\\(.+\\)\\'") . (nil . "buf/\\1"))
+
+        ;; File commands
+        ((nil . "\\`find-\\(.+\\)\\'") . (nil . "find/\\1"))
+
+        ;; Window commands
+        ((nil . "\\`split-window-\\(.+\\)\\'") . (nil . "win/\\1"))
+        ((nil . "\\`delete-\\(.+\\)window\\(.+\\)?\\'") . (nil . "win/del-\\1\\2"))
+
+        ;; Evil commands
+        ((nil . "\\`evil-\\(.+\\)\\'") . (nil . "evil/\\1"))))
+
+;; Add descriptions for command prefixes
+(which-key-add-key-based-replacements
+  "C-c n" "Denote"
+  "C-c j" "Journal"
+  "C-x r" "Registers"
+  "C-x 4" "Other Window"
+  "C-c C-x" "Org Commands")
+#+end_src
+
+** Command prefix organization
+
+This function sets up clear descriptions for common command prefixes, making the command hierarchy more intuitive and discoverable.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-keypad.el
+;; This function properly configures which-key for standard prefixes
+(defun jd-setup-evil-keypad-which-key ()
+  "Set up which-key integration for C-c prefixes.
+These descriptions will automatically appear with SPC c."
+  (interactive)
+
+  ;; Add descriptions only for the actual C-c prefixes
+  ;; Evil-keypad will translate SPC c to C-c automatically
+  (which-key-add-key-based-replacements "C-c p" "Project")
+  (which-key-add-key-based-replacements "C-c w" "Windows")
+  (which-key-add-key-based-replacements "C-c b" "Buffers")
+  (which-key-add-key-based-replacements "C-c t" "Tabs")
+  (which-key-add-key-based-replacements "C-c j" "Journal")
+  (which-key-add-key-based-replacements "C-c n" "Notes")
+  (which-key-add-key-based-replacements "C-c a" "AI Assistant"))
+#+end_src
+
+** Interactive help system
+
+A comprehensive help system that explains Evil Keypad's key translation rules and common command prefixes to aid in learning the system.
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-keypad.el
+;;; ----------------------------------------------------------------------------
+;;; Custom Helper Functions
+;;; ----------------------------------------------------------------------------
+
+;; Function to show help for Evil Keypad usage
+(defun jd-keypad-help ()
+  "Show help for Evil Keypad usage."
+  (interactive)
+  (with-help-window "*Evil Keypad Help*"
+    (princ "Evil Keypad Quick Reference\n")
+    (princ "========================\n\n")
+    (princ "Key Translation Rules:\n")
+    (princ "- SPC x → C-x prefix (Ctrl-persistent)\n")
+    (princ "- SPC c → C-c prefix (Ctrl-persistent)\n")
+    (princ "- SPC h → C-h prefix (not Ctrl-persistent)\n")
+    (princ "- SPC m → M- modifier for next key\n")
+    (princ "- SPC g → C-M- modifier for next key\n")
+    (princ "- SPC SPC → literal next key\n")
+    (princ "- SPC u → C-u (universal argument)\n")
+    (princ "- SPC followed by any other key k → C-c k by default\n\n")
+    (princ "Common Prefixes:\n")
+    (princ "Standard translation path:\n")
+    (princ "- SPC c p → C-c p (Project commands)\n")
+    (princ "- SPC c w → C-c w (Window commands)\n")
+    (princ "- SPC c b → C-c b (Buffer commands)\n")
+    (princ "- SPC c t → C-c t (Tab commands)\n")
+    (princ "- SPC c j → C-c j (Journal commands)\n")
+    (princ "- SPC c n → C-c n (Notes commands)\n")
+    (princ "- SPC c a → C-c a (AI Assistant commands)\n")
+    (princ "- SPC c T → C-c T (Theme commands)\n\n")
+    (princ "Direct translation (shortcut):\n")
+    (princ "- SPC p → C-c p (Project commands directly)\n")
+    (princ "- SPC w → C-c w (Window commands directly)\n")
+    (princ "- SPC b → C-c b (Buffer commands directly)\n")
+    (princ "- SPC t → C-c t (Tab commands directly)\n")
+    (princ "- SPC j → C-c j (Journal commands directly)\n")
+    (princ "- SPC a → C-c a (AI Assistant commands directly)\n")
+    (princ "- SPC c n n → C-c C-n C-n\n")
+    (princ "- SPC x SPC b → C-x b (switch-to-buffer)\n")
+    (princ "- SPC m x → M-x (execute-extended-command)\n")
+    (princ "- SPC g s → C-M-s (isearch-forward-regexp)\n")
+    (princ "- SPC n n → C-c n n (denote)\n")
+    (princ "- SPC j t → C-c j t (journal-today)\n\n")
+    (princ "Tips:\n")
+    (princ "- Press C-h during any prefix to see available commands\n")
+    (princ "- Press C-g to cancel at any point\n")
+    (princ "- Press DEL/Backspace to undo last keypress\n")))
+
+;; Add keybinding to show keypad help
+(define-key evil-normal-state-map (kbd "C-h K") 'jd-keypad-help)
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-evil-keypad.el
+(provide 'jd-evil-keypad)
+;;; jd-evil-keypad.el ends here
+#+end_src
+
+* Navigation System (jd-navigation.el)
+
+The navigation module provides a comprehensive system for managing windows, buffers, and tabs with intuitive keybindings and visual feedback. This system emphasizes discoverability and low cognitive load, making it easy to navigate complex window configurations while learning the system.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; jd-navigation.el --- Window, buffer, and tab navigation -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Enhanced navigation controls with which-key integration
+;; for improved discoverability.  Provides intuitive window,
+;; buffer, and tab management functions with visual feedback.
+;;
+;; This module provides a comprehensive navigation system with three main components:
+;;
+;; 1. Window Management (C-c w prefix)
+;;    - Enhanced window splitting, resizing, and selection
+;;    - Integration with ace-window for quick window selection
+;;    - Visual feedback for window operations
+;;    - Intuitive keybindings for common operations
+;;
+;; 2. Buffer Management (C-c b prefix)
+;;    - Smart buffer cycling that skips system buffers
+;;    - Quick buffer operations (save, kill, revert)
+;;    - Better buffer listing with ibuffer integration
+;;    - Recent files access
+;;
+;; 3. Tab Management (C-c t prefix)
+;;    - Named tab creation and management
+;;    - Tab navigation with clear feedback
+;;    - Tab organization helpers
+;;    - Tab persistence options
+;;
+;; All commands include which-key integration with functional grouping (rather
+;; than alphabetical) and descriptive command names. A quick reference command
+;; is available via C-h N.
+;;
+;; Designed for discoverability and low cognitive load, this module helps users
+;; navigate complex window setups efficiently even while learning the system.
+
+;;; Code:
+
+(require 'which-key)
+#+end_src
+
+** Which-Key configuration
+
+The Which-Key integration is configured for optimal display of navigation commands, using functional grouping rather than alphabetical ordering to make command discovery more intuitive.
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; ----------------------------------------------------------------------------
+;;; Which-Key Configuration
+;;; ----------------------------------------------------------------------------
+
+;; Change sort order to functional grouping instead of alphabetical
+(setq which-key-sort-order 'which-key-description-order)
+
+;; Group related commands
+(setq which-key-sort-uppercase-first nil)
+
+;; Better appearance
+(setq which-key-add-column-padding 3)
+(setq which-key-max-display-columns nil)
+(setq which-key-show-remaining-keys t)
+(setq which-key-side-window-max-height 0.3)
+(setq which-key-show-early-on-C-h t)
+(setq which-key-idle-delay 0.5)
+(setq which-key-idle-secondary-delay 0.05)
+#+end_src
+
+** Window management system
+
+The window management system provides intuitive commands for splitting, resizing, and navigating between windows. Ace-window integration enables quick window selection with visual hints.
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; ----------------------------------------------------------------------------
+;;; Window Management
+;;; ----------------------------------------------------------------------------
+
+;; Better window navigation with ace-window
+(use-package ace-window
+  :ensure t
+  :bind (("M-o" . ace-window))
+  :config
+  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
+  (setq aw-scope 'frame))
+
+;; Window resize functions with better names
+(defun jd-enlarge-window-horizontally ()
+  "Make window wider."
+  (interactive)
+  (enlarge-window-horizontally 5))
+
+(defun jd-shrink-window-horizontally ()
+  "Make window narrower."
+  (interactive)
+  (shrink-window-horizontally 5))
+
+(defun jd-enlarge-window ()
+  "Make window taller."
+  (interactive)
+  (enlarge-window 3))
+
+(defun jd-shrink-window ()
+  "Make window shorter."
+  (interactive)
+  (shrink-window 3))
+
+;; Window management keymap
+(defvar jd-window-map (make-sparse-keymap)
+  "Keymap for window management commands.")
+
+(define-key global-map (kbd "C-c w") jd-window-map)
+
+(define-key jd-window-map (kbd "v") #'split-window-right)
+(define-key jd-window-map (kbd "s") #'split-window-below)
+(define-key jd-window-map (kbd "d") #'delete-window)
+(define-key jd-window-map (kbd "o") #'delete-other-windows)
+(define-key jd-window-map (kbd "w") #'ace-window)
+(define-key jd-window-map (kbd "b") #'balance-windows)
+(define-key jd-window-map (kbd "r") #'jd-enlarge-window)       ; resize
+(define-key jd-window-map (kbd "f") #'jd-shrink-window)
+(define-key jd-window-map (kbd "n") #'jd-enlarge-window-horizontally)
+(define-key jd-window-map (kbd "p") #'jd-shrink-window-horizontally)
+#+end_src
+
+** Buffer management system
+
+Smart buffer management functions that make it easier to work with user buffers while avoiding system buffers. Includes convenient commands for common buffer operations.
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; ----------------------------------------------------------------------------
+;;; Buffer Management
+;;; ----------------------------------------------------------------------------
+
+;; Enhanced buffer navigation
+(defun jd-next-user-buffer ()
+  "Switch to the next user buffer (excludes system buffers)."
+  (interactive)
+  (let ((start-buffer (current-buffer)))
+    (next-buffer)
+    (while (and (string-match-p "^\\*" (buffer-name))
+                (not (eq (current-buffer) start-buffer)))
+      (next-buffer))))
+
+(defun jd-previous-user-buffer ()
+  "Switch to the previous user buffer (excludes system buffers)."
+  (interactive)
+  (let ((start-buffer (current-buffer)))
+    (previous-buffer)
+    (while (and (string-match-p "^\\*" (buffer-name))
+                (not (eq (current-buffer) start-buffer)))
+      (previous-buffer))))
+
+;; Revert buffer without confirmation for non-file buffers
+(defun jd-revert-buffer ()
+  "Revert buffer without confirmation for non-file and unmodified buffers."
+  (interactive)
+  (if (or (not (buffer-file-name))
+          (not (buffer-modified-p))
+          (yes-or-no-p "Buffer is modified. Revert anyway? "))
+      (revert-buffer t t)
+    (message "Buffer not reverted.")))
+
+;; Buffer keymap
+(defvar jd-buffer-map (make-sparse-keymap)
+  "Keymap for buffer management commands.")
+
+(define-key global-map (kbd "C-c b") jd-buffer-map)
+
+(define-key jd-buffer-map (kbd "b") #'switch-to-buffer)
+(define-key jd-buffer-map (kbd "k") #'kill-this-buffer)
+(define-key jd-buffer-map (kbd "r") #'jd-revert-buffer)
+(define-key jd-buffer-map (kbd "n") #'jd-next-user-buffer)
+(define-key jd-buffer-map (kbd "p") #'jd-previous-user-buffer)
+(define-key jd-buffer-map (kbd "s") #'save-buffer)
+(define-key jd-buffer-map (kbd "f") #'find-file)
+(define-key jd-buffer-map (kbd "i") #'ibuffer)
+#+end_src
+
+** Tab management system
+
+Enhanced tab management that supports named tabs and provides intuitive commands for creating, navigating, and organizing tabs.
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; ----------------------------------------------------------------------------
+;;; Tab Management
+;;; ----------------------------------------------------------------------------
+
+;; Enhanced tab bar functions
+(defun jd-tab-new-named ()
+  "Create a new tab with a custom name."
+  (interactive)
+  (let ((tab-name (read-string "Tab name: ")))
+    (tab-bar-new-tab)
+    (tab-bar-rename-tab tab-name)))
+
+(defun jd-tab-rename ()
+  "Rename current tab with visual feedback."
+  (interactive)
+  (let ((old-name (tab-bar-tab-name-current))
+        (new-name (read-string "Rename current tab: ")))
+    (tab-bar-rename-tab new-name)
+    (message "Tab renamed from '%s' to '%s'" old-name new-name)))
+
+(defun jd-tab-select-or-create ()
+  "Select a tab by name or create if it doesn't exist."
+  (interactive)
+  (let* ((tabs (mapcar (lambda (tab) (alist-get 'name tab))
+                       (tab-bar--tabs-recent)))
+         (tab-name (completing-read "Select or create tab: " tabs)))
+    (if (member tab-name tabs)
+        (tab-bar-select-tab-by-name tab-name)
+      (tab-bar-new-tab)
+      (tab-bar-rename-tab tab-name))))
+
+;; Tab keymap
+(defvar jd-tab-map (make-sparse-keymap)
+  "Keymap for tab management commands.")
+
+(define-key global-map (kbd "C-c t") jd-tab-map)
+
+(define-key jd-tab-map (kbd "c") #'jd-tab-new-named)
+(define-key jd-tab-map (kbd "n") #'tab-bar-new-tab)
+(define-key jd-tab-map (kbd "x") #'tab-bar-close-tab)
+(define-key jd-tab-map (kbd "r") #'jd-tab-rename)
+(define-key jd-tab-map (kbd "o") #'tab-bar-switch-to-next-tab)
+(define-key jd-tab-map (kbd "p") #'tab-bar-switch-to-prev-tab)
+(define-key jd-tab-map (kbd "l") #'tab-bar-switch-to-recent-tab)
+(define-key jd-tab-map (kbd "t") #'jd-tab-select-or-create)
+#+end_src
+
+** Quick reference system
+
+A comprehensive help system that provides instant access to navigation command documentation and key bindings.
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; ----------------------------------------------------------------------------
+;;; Quick Reference and Help
+;;; ----------------------------------------------------------------------------
+
+(defun jd-quick-reference ()
+  "Show quick reference for common navigation operations."
+  (interactive)
+  (with-help-window "*Navigation Quick Reference*"
+    (princ "# Emacs Navigation Quick Reference\n\n")
+
+    (princ "## Window Management (C-c w)\n")
+    (princ "v         Split window right\n")
+    (princ "s         Split window below\n")
+    (princ "d         Delete current window\n")
+    (princ "o         Delete other windows\n")
+    (princ "w         Select window (ace-window)\n")
+    (princ "b         Balance windows\n")
+    (princ "r/f       Resize window height\n")
+    (princ "n/p       Resize window width\n\n")
+
+    (princ "## Buffer Management (C-c b)\n")
+    (princ "b         Switch buffer\n")
+    (princ "k         Kill buffer\n")
+    (princ "r         Revert buffer\n")
+    (princ "n/p       Next/previous user buffer\n")
+    (princ "s         Save buffer\n")
+    (princ "f         Find file\n")
+    (princ "i         IBuffer\n\n")
+
+    (princ "## Tab Management (C-c t)\n")
+    (princ "c         New named tab\n")
+    (princ "n         New tab\n")
+    (princ "x         Close tab\n")
+    (princ "r         Rename tab\n")
+    (princ "o/p       Next/previous tab\n")
+    (princ "l         Last (recent) tab\n")
+    (princ "t         Select tab by name\n\n")
+
+    (princ "## Evil Keypad Navigation (SPC prefix)\n")
+    (princ "SPC w ...  Window commands\n")
+    (princ "SPC b ...  Buffer commands\n")
+    (princ "SPC t ...  Tab commands\n")
+    (princ "SPC x o    Other window (C-x o)\n")
+    (princ "SPC x b    Switch buffer (C-x b)\n")
+    (princ "SPC C-h N  Show this quick reference\n\n")
+
+    (princ "## Standard Navigation\n")
+    (princ "M-o       Ace window (quick select)\n")
+    (princ "C-x o     Other window\n")
+    (princ "C-x b     Switch buffer\n")
+    (princ "C-x k     Kill buffer\n")
+    (princ "C-x t     Tab commands\n")))
+
+;; Bind to a convenient key
+(global-set-key (kbd "C-h N") #'jd-quick-reference)
+#+end_src
+
+** Evil mode integration
+
+Integration with Evil mode and Evil Keypad to ensure navigation commands are accessible through both Emacs and Vim-style key bindings.
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; ----------------------------------------------------------------------------
+;;; Evil Integration
+;;; ----------------------------------------------------------------------------
+
+;(with-eval-after-load 'evil
+  ;; Add Evil keypad integration for navigation commands
+  ; (with-eval-after-load 'evil-keypad
+  ;   (when (boundp 'evil-keypad-prefix-keymap)
+  ;     (which-key-add-keymap-based-replacements evil-keypad-prefix-keymap
+  ;       "w" "Window"
+  ;       "b" "Buffer"
+  ;      "t" "Tab"))))
+#+end_src
+
+** Which-Key integration
+
+Comprehensive Which-Key integration that provides clear, context-aware command descriptions and organizes commands into logical groups.
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+;;; ----------------------------------------------------------------------------
+;;; Which-Key Integration
+;;; ----------------------------------------------------------------------------
+
+;; Add descriptions for standard keybindings
+(which-key-add-major-mode-key-based-replacements 'global
+  "C-x 4" "Other Window Commands"
+  "C-x 5" "Other Frame Commands"
+  "C-x t" "Tab Commands"
+  "C-x r" "Rectangle/Register Commands"
+  "C-x v" "Version Control")
+
+;; Add descriptions for custom keymaps
+(which-key-add-key-based-replacements "C-c w" "Window")
+(which-key-add-key-based-replacements "C-c b" "Buffer")
+(which-key-add-key-based-replacements "C-c t" "Tab")
+
+;; Improve descriptions of related functions
+(setq which-key-replacement-alist
+      (append which-key-replacement-alist
+              '(
+                ;; Navigation and window management
+                ((nil . "\\`windmove-\\(.+\\)\\'") . (nil . "win/\\1"))
+                ((nil . "\\`tab-bar-\\(.+\\)\\'") . (nil . "tab/\\1"))
+                ((nil . "\\`switch-to-\\(.+\\)\\'") . (nil . "goto/\\1"))
+
+                ;; File operations
+                ((nil . "\\`find-\\(.+\\)\\'") . (nil . "find/\\1"))
+                ((nil . "\\`write-\\(.+\\)\\'") . (nil . "write/\\1"))
+
+                ;; Buffer operations
+                ((nil . "\\`kill-\\(.+\\)buffer\\(.+\\)?\\'") . (nil . "buf/kill-\\1\\2"))
+                ((nil . "\\`buffer-\\(.+\\)\\'") . (nil . "buf/\\1"))
+
+                ;; Search and replace
+                ((nil . "\\`isearch-\\(.+\\)\\'") . (nil . "search/\\1"))
+                ((nil . "\\`query-replace\\(.+\\)?\\'") . (nil . "replace\\1"))
+
+                ;; Help and documentation
+                ((nil . "\\`describe-\\(.+\\)\\'") . (nil . "help/\\1"))
+                ((nil . "\\`info-\\(.+\\)\\'") . (nil . "info/\\1"))
+                )))
+
+;; Add window command descriptions
+(which-key-add-key-based-replacements
+  "C-c w v" "Split window right"
+  "C-c w s" "Split window below"
+  "C-c w d" "Delete window"
+  "C-c w o" "Delete other windows"
+  "C-c w w" "Select window (ace)"
+  "C-c w b" "Balance windows"
+  "C-c w r" "Enlarge window (height)"
+  "C-c w f" "Shrink window (height)"
+  "C-c w n" "Enlarge window (width)"
+  "C-c w p" "Shrink window (width)")
+
+;; Add buffer command descriptions
+(which-key-add-key-based-replacements
+  "C-c b b" "Switch buffer"
+  "C-c b k" "Kill buffer"
+  "C-c b r" "Revert buffer"
+  "C-c b n" "Next user buffer"
+  "C-c b p" "Previous user buffer"
+  "C-c b s" "Save buffer"
+  "C-c b f" "Find file"
+  "C-c b i" "IBuffer")
+
+;; Add tab command descriptions
+(which-key-add-key-based-replacements
+  "C-c t c" "New named tab"
+  "C-c t n" "New tab"
+  "C-c t x" "Close tab"
+  "C-c t r" "Rename tab"
+  "C-c t o" "Next tab"
+  "C-c t p" "Previous tab"
+  "C-c t l" "Last tab"
+  "C-c t t" "Select tab by name")
+
+;; Also improve standard tab command descriptions
+(which-key-add-key-based-replacements
+  "C-x t 0" "Close tab"
+  "C-x t 1" "Close other tabs"
+  "C-x t 2" "New tab"
+  "C-x t b" "Switch to tab"
+  "C-x t o" "Next tab"
+  "C-x t r" "Rename tab")
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-navigation.el
+(provide 'jd-navigation)
+;;; jd-navigation.el ends here
+#+end_src
+
+* Completion Framework (jd-completion.el)
+
+The completion module provides a modern, powerful completion system using Vertico for minibuffer completion, Corfu for in-buffer completion, and enhanced by Marginalia, Orderless, and Consult. This framework prioritizes speed, flexibility, and discoverability while maintaining consistency across different completion contexts.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; jd-completion.el --- Completion frameworks -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Configuration for completion frameworks including Vertico,
+;; Corfu, Marginalia, and Consult.
+
+;;; Code:
+#+end_src
+
+** Minibuffer completion configuration
+
+Basic minibuffer settings that provide the foundation for enhanced completion behavior. These settings enable recursive minibuffers and configure default completion behavior.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Minibuffer completion configuration
+;;; ----------------------------------------------------------------------------
+
+;; Basic minibuffer settings
+(setq enable-recursive-minibuffers t)
+(setq completion-cycle-threshold 1)
+(setq completions-detailed t)
+(setq tab-always-indent 'complete)
+
+;; Default completion configuration - will be modified by orderless
+(setq completion-auto-help 'always)
+(setq completions-max-height 20)
+(setq completions-detailed t)
+(setq completions-format 'one-column)
+(setq completions-group t)
+(setq completion-auto-select 'second-tab)
+
+(keymap-set minibuffer-mode-map "TAB" 'minibuffer-complete)
+#+end_src
+
+** Vertico configuration
+
+Vertico provides a vertical display of completion candidates in the minibuffer, making it easier to see and select options. The vertical layout is more ergonomic and helps maintain context while selecting completions.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Vertico for vertical completion in minibuffer
+;;; ----------------------------------------------------------------------------
+
+(use-package vertico
+  :init
+  (vertico-mode))
+
+(use-package vertico-directory
+  :ensure nil
+  :after vertico
+  :bind (:map vertico-map
+              ("M-DEL" . vertico-directory-delete-word)))
+#+end_src
+
+** Marginalia integration
+
+Marginalia enriches completion candidates with additional information displayed in the margin. This provides valuable context without cluttering the main completion area.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Marginalia for rich annotations
+;;; ----------------------------------------------------------------------------
+
+(use-package marginalia
+  :config
+  (marginalia-mode))
+#+end_src
+
+** Orderless completion style
+
+Orderless enables flexible matching using space-separated components, similar to many modern fuzzy-finding tools. This configuration focuses on the most intuitive matching styles.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Orderless for flexible matching
+;;; ----------------------------------------------------------------------------
+
+(use-package orderless
+  :custom
+  ;; Simple matching styles - literal and regexp are most intuitive
+  (orderless-matching-styles '(orderless-literal orderless-regexp))
+
+  :config
+  ;; Basic setup with minimal configuration
+  ;; - orderless for flexible matching
+  ;; - basic for TRAMP and dynamic completion tables
+  ;; - partial-completion for file paths (like /u/s/l for /usr/share/local)
+  (setq completion-styles '(orderless basic)
+        completion-category-overrides '((file (styles basic partial-completion orderless)))))
+#+end_src
+
+** Corfu completion UI
+
+Corfu provides a modern popup interface for in-buffer completion (completion-at-point). It integrates with the built-in completion system while providing a more polished experience.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Corfu for completion-at-point popup
+;;; ----------------------------------------------------------------------------
+
+(use-package corfu
+  :init
+  (global-corfu-mode)
+  :bind
+  (:map corfu-map
+        ("SPC" . corfu-insert-separator)
+        ("C-n" . corfu-next)
+        ("C-p" . corfu-previous)))
+
+;; Corfu popupinfo for documentation
+(use-package corfu-popupinfo
+  :after corfu
+  :ensure nil
+  :hook (corfu-mode . corfu-popupinfo-mode)
+  :custom
+  (corfu-popupinfo-delay '(0.25 . 0.1))
+  (corfu-popupinfo-hide nil)
+  :config
+  (corfu-popupinfo-mode))
+
+;; Terminal support for Corfu
+(use-package corfu-terminal
+  :if (not (display-graphic-p))
+  :config
+  (corfu-terminal-mode))
+#+end_src
+
+** Additional completion utilities
+
+Supporting packages that enhance the completion experience with templates, additional completion sources, and visual improvements.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Additional completion utilities
+;;; ----------------------------------------------------------------------------
+
+;;; Tempel for template-based snippets
+(use-package tempel
+  :bind (("M-+" . tempel-insert)) ;; Simple binding to insert templates
+
+  :init
+  ;; Setup completion at point
+  (defun tempel-setup-capf ()
+    ;; Add the tempel capf to completion-at-point-functions
+    (add-hook 'completion-at-point-functions #'tempel-expand nil t))
+
+  ;; Add hooks to programming and text modes
+  (add-hook 'prog-mode-hook 'tempel-setup-capf)
+  (add-hook 'text-mode-hook 'tempel-setup-capf)
+
+  :custom
+  (tempel-path (expand-file-name "etc/templates/templates.eld"
+                               (file-name-directory load-file-name))))
+
+;; Cape for extra completion-at-point sources
+(use-package cape
+  :init
+  ;; Add the most useful completion sources
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev) ; Complete words from current buffers
+  (add-to-list 'completion-at-point-functions #'cape-file)    ; Complete file paths
+
+  ;; Add a few convenient key bindings for manual invocation
+  :bind (("C-c p d" . cape-dabbrev)     ; Complete word from buffer
+         ("C-c p f" . cape-file)        ; Complete file path
+         ("C-c p l" . cape-line))       ; Complete entire line
+
+  :config
+  ;; Add elisp symbol completion in elisp modes
+  (add-hook 'emacs-lisp-mode-hook
+            (lambda ()
+              (add-hook 'completion-at-point-functions #'cape-elisp-symbol nil t))))
+
+;; Kind-icon for prettier completion icons
+(use-package kind-icon
+  :if (display-graphic-p)
+  :after corfu
+  :config
+  (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
+#+end_src
+
+** Consult integration
+
+Consult provides enhanced versions of common Emacs commands, focusing on search and navigation while integrating seamlessly with the completion system.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Consult for enhanced commands
+;;; ----------------------------------------------------------------------------
+
+;; Focus on just the essential Consult commands
+(use-package consult
+  :bind (
+         ;; Core replacement commands (the ones you'll use every day)
+         ("C-x b" . consult-buffer)         ;; Enhanced buffer switching
+         ("C-x C-f" . consult-find)         ;; Find file by name
+         ("M-y" . consult-yank-pop)         ;; Enhanced yank history
+         ("M-g g" . consult-goto-line)      ;; Go to line
+
+         ;; Searching commands (most commonly used)
+         ("M-s r" . consult-ripgrep)        ;; Search using ripgrep
+         ("M-s l" . consult-line)           ;; Search lines in current buffer
+         ("M-s o" . consult-outline)        ;; Navigate by headings
+
+         ;; Isearch integration
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)  ;; Search history
+         ("M-s l" . consult-line))          ;; Switch to line search
+
+  :config
+  ;; Simple preview configuration
+  (consult-customize
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file
+   :preview-key '(:debounce 0.4 any))
+
+  ;; Narrowing key for filtering results
+  (setq consult-narrow-key "<"))
+#+end_src
+
+** Embark context menu
+
+Embark provides contextual actions for completion candidates and general text targets, integrating especially well with Consult.
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+;;; ----------------------------------------------------------------------------
+;;; Embark for context-sensitive actions
+;;; ----------------------------------------------------------------------------
+
+;; Basic Embark configuration - just the essentials
+(use-package embark
+  :bind (("C-c a" . embark-act)       ; Main action key
+         ("C-c e" . embark-export))   ; Export to a buffer
+
+  :config
+  ;; Hide the mode line of the Embark collect buffers
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
+
+;; Connect Embark and Consult
+(use-package embark-consult
+  :after (embark consult))
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-completion.el
+(provide 'jd-completion)
+;;; jd-completion.el ends here
+#+end_src
+
+* Org Mode Configuration (jd-org.el)
+
+This module provides a comprehensive org-mode configuration with modern styling, enhanced typography, and improved visual hierarchy. It incorporates Sophie Bosio's visual enhancements along with custom adaptations using Aporetic fonts for optimal readability.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; jd-org.el --- Org mode configuration -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Configuration for org-mode with modern styling, enhanced typography,
+;; and improved visual hierarchy. Features Aporetic fonts and better spacing.
+
+;;; Code:
+#+end_src
+
+** Prettify symbols setup
+
+Adapted from Sophie's configuration, this setup replaces common org syntax with beautiful Unicode symbols, improving visual appeal while maintaining readability.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; Sophie's prettify symbols setup
+;;; ----------------------------------------------------------------------------
+
+(defun jd-org-prettify-symbols-setup ()
+  "Beautify org keywords and symbols (adapted from Sophie's config)."
+  (interactive)
+  (setq prettify-symbols-alist
+        (mapcan (lambda (x)
+                  (when (and (consp x) (stringp (car x)))
+                    (list x (cons (upcase (car x)) (cdr x)))))
+                '(; Greek symbols
+                  ("lambda" . ?λ)
+                  ("delta"  . ?Δ)
+                  ("gamma"  . ?Γ)
+                  ("phi"    . ?φ)
+                  ("psi"    . ?ψ)
+                  ; Org headers
+                  ("#+title:"  . ?📋)
+                  ("#+author:" . ?👤)
+                  ("#+date:"   . ?📅)
+                  ; Checkboxes
+                  ("[ ]" . ?☐)
+                  ("[X]" . ?☑)
+                  ("[-]" . ?☒)
+                  ; Blocks
+                  ("#+begin_src"   . ?💻)
+                  ("#+end_src"     . ?⌐)
+                  ("#+begin_quote" . ?‟)
+                  ("#+end_quote"   . ?")
+                  ; Drawers
+                  (":properties:" . ?⚙)
+                  ; Agenda scheduling
+                  ("SCHEDULED:"   . ?🕘)
+                  ("DEADLINE:"    . ?⏰)
+                  ; Common tags
+                  (":work:"       . ?🚀)
+                  (":emacs:"      . ?💻)
+                  (":project:"    . ?📋)
+                  (":idea:"       . ?💡)
+                  (":note:"       . ?📝)
+                  (":research:"   . ?🔍)
+                  ; File tags
+                  ("#+filetags:"  . ?📎))))
+  (prettify-symbols-mode 1))
+
+(add-hook 'org-mode-hook #'jd-org-prettify-symbols-setup)
+#+end_src
+
+** Font configuration
+
+This section configures fonts for org-mode using Aporetic typefaces, ensuring proper hierarchy and readability across different content types.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; org-modern configuration with enhanced styling
+;;; ----------------------------------------------------------------------------
+
+(defun jd-org-setup-fonts ()
+  "Configure fonts for org-mode with Aporetic typefaces and improved hierarchy."
+  ;; Set up variable pitch face for prose
+  (set-face-attribute 'variable-pitch nil
+                      :family "Aporetic Serif"
+                      :height 1.1)
+
+  ;; Ensure fixed pitch uses Aporetic Sans Mono
+  (set-face-attribute 'fixed-pitch nil
+                      :family "Aporetic Sans Mono")
+
+  ;; Configure org-mode specific faces
+  (set-face-attribute 'org-block nil
+                      :inherit 'fixed-pitch
+                      :family "Aporetic Sans Mono"
+                      :background (face-attribute 'default :background))
+
+  (set-face-attribute 'org-code nil
+                      :inherit 'fixed-pitch
+                      :family "Aporetic Sans Mono")
+
+  (set-face-attribute 'org-verbatim nil
+                      :inherit 'fixed-pitch
+                      :family "Aporetic Sans Mono")
+
+  (set-face-attribute 'org-table nil
+                      :inherit 'fixed-pitch
+                      :family "Aporetic Sans Mono")
+
+  ;; Sophie's enhanced heading configuration
+  (custom-set-faces
+   '(org-document-title ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.6 :weight bold))))
+   '(org-level-1        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.25 :weight bold))))
+   '(org-level-2        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.2 :weight bold))))
+   '(org-level-3        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.15 :weight bold))))
+   '(org-level-4        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.05 :weight bold))))
+   '(org-level-5        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.0 :weight bold))))
+   '(org-level-6        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.0 :weight bold))))
+   '(org-level-7        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.0 :weight bold))))
+   '(org-level-8        ((t (:inherit variable-pitch :family "Aporetic Serif" :height 1.0 :weight bold)))))
+
+  ;; Enhanced quote and special block styling
+  (set-face-attribute 'org-quote nil
+                      :inherit 'variable-pitch
+                      :family "Aporetic Serif"
+                      :slant 'italic)
+
+  (set-face-attribute 'org-verse nil
+                      :inherit 'variable-pitch
+                      :family "Aporetic Serif"
+                      :slant 'italic)
+
+  ;; Meta-line styling for cleaner appearance
+  (set-face-attribute 'org-meta-line nil
+                      :inherit 'fixed-pitch
+                      :family "Aporetic Sans Mono"
+                      :height 0.9)
+
+  (set-face-attribute 'org-drawer nil
+                      :inherit 'fixed-pitch
+                      :family "Aporetic Sans Mono"
+                      :height 0.9)
+
+  (set-face-attribute 'org-special-keyword nil
+                      :inherit 'fixed-pitch
+                      :family "Aporetic Sans Mono"
+                      :height 0.9))
+#+end_src
+
+** Basic org-mode configuration
+
+Core org-mode settings that establish the foundation for a clean, modern editing experience.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; Basic org mode setup
+;;; ----------------------------------------------------------------------------
+
+(use-package org
+  :ensure t
+  :hook
+  ((org-mode . visual-line-mode)        ;; Wrap lines visually
+   (org-mode . org-indent-mode)         ;; Indent text according to outline structure
+   (org-mode . variable-pitch-mode)     ;; Enable variable pitch for prose
+   (org-mode . jd-org-setup-fonts))     ;; Apply our font configuration
+  :custom
+  ;; Basic settings
+  (org-startup-indented t)              ;; Start with indent-mode enabled
+  (org-startup-folded 'content)         ;; Show headings but fold content
+  (org-pretty-entities t)               ;; Show entities as UTF-8 characters
+  (org-hide-emphasis-markers t)         ;; Hide emphasis markers
+  (org-fontify-quote-and-verse-blocks t) ;; Fontify quote blocks
+  (org-fontify-whole-heading-line t)    ;; Fontify the whole line for headings
+  (org-ellipsis " ▾")                   ;; Use a nicer ellipsis
+  (org-return-follows-link t)           ;; RET follows links
+  (org-log-done 'time)                  ;; Add timestamp when marking items as done
+
+  ;; Sophie's spacing and alignment improvements
+  (org-cycle-separator-lines 2)         ;; Show 2 blank lines after folded subtrees
+  (org-blank-before-new-entry '((heading . nil) (plain-list-item . nil))) ;; Better blank line handling
+  (org-adapt-indentation nil)           ;; Don't indent text to match headline
+  (org-edit-src-content-indentation 0)  ;; Don't indent source code
+  (org-src-preserve-indentation t)      ;; Preserve source code indentation
+
+  ;; Settings to work well with org-modern
+  (org-auto-align-tags nil)             ;; Don't align tags (we handle this manually)
+  (org-tags-column -80)                 ;; Right-align tags
+  (org-catch-invisible-edits 'show-and-error) ;; Prevent editing invisible text
+  (org-special-ctrl-a/e t)              ;; Better navigation in headings
+  (org-insert-heading-respect-content t) ;; Insert headings after subtree
+
+  ;; Better list formatting
+  (org-list-allow-alphabetical t)       ;; Allow alphabetical lists
+  (org-list-indent-offset 2)            ;; Indent lists by 2 spaces
+
+  ;; Enhanced source block settings
+  (org-src-fontify-natively t)          ;; Native syntax highlighting
+  (org-src-tab-acts-natively t)         ;; Native tab behavior
+
+  ;; LaTeX preview improvements
+  (org-startup-with-latex-preview t))   ;; Show LaTeX previews by default
+
+;; Configure LaTeX preview scaling after org is loaded
+(with-eval-after-load 'org
+  (plist-put org-format-latex-options :scale 1.35))
+#+end_src
+
+** Enhanced appearance packages
+
+Modern packages that improve org-mode's visual appearance while maintaining functionality.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; Enhanced org appearance (keeping only non-conflicting packages)
+;;; ----------------------------------------------------------------------------
+
+;; org-appear: Show emphasis markers when cursor is within them
+(use-package org-appear
+  :ensure t
+  :hook (org-mode . org-appear-mode)
+  :config
+  (setq org-hide-emphasis-markers t)  ;; Must be activated for org-appear to work
+  (setq org-appear-autoemphasis   t   ;; Show bold, italics, verbatim, etc.
+        org-appear-autolinks      t   ;; Show links
+        org-appear-autosubmarkers t)) ;; Show sub- and superscripts
+
+(use-package org-modern
+  :ensure t
+  :after org
+  :hook (org-mode . org-modern-mode)
+  :custom
+  ;; Configure stars and bullets
+  (org-modern-star 'replace)
+  (org-modern-replace-stars "◉○◈◇◆◇✳")
+  (org-modern-list '((?+ . "▶") (?- . "▪") (?* . "▫")))
+
+  ;; Better checkbox styling
+  (org-modern-checkbox '((?X . "☑") (?- . "□") (?\s . "☐")))
+
+  ;; Improve table styling
+  (org-modern-table-vertical 1)
+  (org-modern-table-horizontal 0.2)
+
+  ;; Better tag styling with spacing
+  (org-modern-tag t)
+  (org-modern-priority t)
+  (org-modern-todo t)
+
+  ;; Add some breathing room
+  (org-modern-block-fringe 4))
+#+end_src
+
+** Advanced spacing techniques
+
+Sophie's sophisticated spacing and alignment techniques for improved visual hierarchy.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; Sophie's advanced spacing and alignment techniques
+;;; ----------------------------------------------------------------------------
+
+(defun jd-org-improve-spacing ()
+  "Improve spacing and visual hierarchy in org-mode."
+  ;; Add more space around headings
+  (setq-local line-spacing 0.1)
+
+  ;; Better paragraph spacing
+  (setq-local paragraph-start
+              "\f\\|[ \t]*$\\|[ \t]*[-+*] \\|[ \t]*[0-9]+[.)] \\|[ \t]*: ")
+  (setq-local paragraph-separate "[ \t\f]*$"))
+
+;; Apply spacing improvements
+(add-hook 'org-mode-hook #'jd-org-improve-spacing)
+
+;; Sophie's right-align tags technique using font-lock
+(defun jd-org-setup-tag-alignment ()
+  "Set up right-aligned tags using font-lock and display properties."
+  (add-to-list 'font-lock-extra-managed-props 'display)
+  (font-lock-add-keywords nil
+                         `(("^.*?\\( \\)\\(:[[:alnum:]_@#%:]+:\\)$"
+                            (1 `(face nil
+                                     display (space :align-to (- right ,(+ (org-string-width (match-string 2)) 3))))
+                               prepend))) t))
+
+(add-hook 'org-mode-hook #'jd-org-setup-tag-alignment)
+
+;; Enhanced org settings inspired by Sophie's config
+(defun jd-org-sophie-enhancements ()
+  "Apply Sophie's org-mode visual enhancements."
+  ;; Better folding and visibility
+  (setq-local org-startup-folded 'content)
+  (setq-local org-hide-leading-stars t)
+  (setq-local org-pretty-entities t)
+  (setq-local org-ellipsis "  ·")
+
+  ;; Improved source block handling
+  (setq-local org-src-fontify-natively t)
+  (setq-local org-src-tab-acts-natively t)
+  (setq-local org-edit-src-content-indentation 0)
+
+  ;; Better TODO and heading behavior
+  (setq-local org-log-done t)
+  (setq-local org-auto-align-tags t)
+  (setq-local org-tags-column -80)
+  (setq-local org-fold-catch-invisible-edits 'show-and-error)
+  (setq-local org-special-ctrl-a/e t)
+  (setq-local org-insert-heading-respect-content t)
+
+  ;; Better blank line handling
+  (setq-local org-blank-before-new-entry '((heading . nil) (plain-list-item . nil))))
+
+(add-hook 'org-mode-hook #'jd-org-sophie-enhancements)
+#+end_src
+
+** Source block configuration
+
+Enhanced configuration for org source blocks, ensuring proper syntax highlighting and editing behavior.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; Source block enhancements
+;;; ----------------------------------------------------------------------------
+
+(use-package org-src
+  :ensure nil
+  :after org
+  :custom
+  ;; Better source block handling
+  (org-src-fontify-natively t)         ;; Fontify source blocks natively
+  (org-src-tab-acts-natively t)        ;; Tab acts natively in source blocks
+  (org-src-preserve-indentation t)     ;; Preserve indentation
+  (org-edit-src-content-indentation 0) ;; No extra indentation
+  (org-src-window-setup 'current-window) ;; Edit in current window
+  :config
+  ;; Ensure source blocks use fixed-pitch font
+  (add-hook 'org-src-mode-hook
+            (lambda ()
+              (setq-local buffer-face-mode-face 'fixed-pitch)
+              (buffer-face-mode 1))))
+#+end_src
+
+** Additional features
+
+Extra org-mode features that enhance the editing experience.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; Additional org features
+;;; ----------------------------------------------------------------------------
+
+;; Enable org tempo for structure templates
+(use-package org-tempo
+  :ensure nil  ;; Built into org
+  :after org)
+
+;; Visual fill for better reading experience
+(use-package visual-fill-column
+  :ensure t
+  :hook (org-mode . visual-fill-column-mode)
+  :custom
+  (visual-fill-column-width 90)        ;; Slightly narrower for better readability
+  (visual-fill-column-center-text t)
+  (visual-fill-column-fringes-outside-margins nil))
+#+end_src
+
+** Custom faces and styling
+
+Additional face customizations that complete the visual enhancement of org-mode.
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+;;; ----------------------------------------------------------------------------
+;;; Custom faces and additional styling
+;;; ----------------------------------------------------------------------------
+
+(defun jd-org-enhance-faces ()
+  "Apply additional face enhancements for better visual hierarchy."
+  ;; Improve quote blocks
+  (set-face-attribute 'org-quote nil
+                      :inherit 'variable-pitch
+                      :slant 'italic
+                      :background (face-attribute 'default :background))
+
+  ;; Better verse blocks
+  (set-face-attribute 'org-verse nil
+                      :inherit 'variable-pitch
+                      :slant 'italic)
+
+  ;; Improve meta-data appearance
+  (set-face-attribute 'org-meta-line nil
+                      :inherit 'fixed-pitch
+                      :height 0.9)
+
+  (set-face-attribute 'org-drawer nil
+                      :inherit 'fixed-pitch
+                      :height 0.9)
+
+  ;; Better special keywords
+  (set-face-attribute 'org-special-keyword nil
+                      :inherit 'fixed-pitch
+                      :height 0.9))
+
+;; Apply face enhancements after theme loads
+(add-hook 'org-mode-hook #'jd-org-enhance-faces)
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-org.el
+(provide 'jd-org)
+;;; jd-org.el ends here
+#+end_src
+
+* Note-Taking System (jd-notes.el)
+
+This module configures a comprehensive note-taking system built around Denote, emphasizing minimal friction during capture and organization. The system integrates with terminal tools and supports multiple file formats while maintaining a clean, consistent structure.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-notes.el
+;;; jd-notes.el --- Note-taking with Denote -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Configuration for note-taking using Denote with a focus on
+;; minimizing friction during capture and organization.
+
+;;; Code:
+#+end_src
+
+** Denote configuration
+
+Denote provides a simple yet powerful note-taking system that uses filename conventions for organization. This configuration emphasizes quick capture and easy navigation.
+
+#+begin_src emacs-lisp :tangle lisp/jd-notes.el
+;;; ----------------------------------------------------------------------------
+;;; Denote configuration
+;;; ----------------------------------------------------------------------------
+
+(use-package denote
+  :ensure t
+  :after dired
+  :hook (dired-mode . denote-dired-mode)
+  :bind
+  (("C-c n n" . denote)
+   ("C-c n r" . denote-rename-file)
+   ("C-c n l" . denote-link)
+   ("C-c n b" . denote-backlinks)
+   ("C-c n d" . denote-dired)
+   ("C-c n g" . denote-grep))
+  :init
+  (setq denote-directory (expand-file-name "~/Documents/notes/"))
+  :config
+  ;; Automatically rename Denote buffers for cleaner navigation
+  (denote-rename-buffer-mode 1))
+#+end_src
+
+** Helper functions
+
+Custom functions that enhance the note-taking workflow by providing quick access to common operations.
+
+#+begin_src emacs-lisp :tangle lisp/jd-notes.el
+;;; ----------------------------------------------------------------------------
+;;; Helper functions
+;;; ----------------------------------------------------------------------------
+
+(defun jd-denote-open-notes-dir ()
+  "Open the notes directory in Dired."
+  (interactive)
+  (dired denote-directory))
+
+(use-package consult
+  :ensure t
+  :after denote)
+
+(defun jd-denote-find-notes ()
+  "Quickly find a note using completion."
+  (interactive)
+  (consult-ripgrep denote-directory))
+
+(defun jd-denote-new-note ()
+  "Create a new note with minimal prompting."
+  (interactive)
+  (denote (read-string "Title: ") nil nil))
+#+end_src
+
+** Additional file type support
+
+Support for Markdown files ensures compatibility with external tools while maintaining the benefits of Denote's organization.
+
+#+begin_src emacs-lisp :tangle lisp/jd-notes.el
+;;; ----------------------------------------------------------------------------
+;;; Additional file type support
+;;; ----------------------------------------------------------------------------
+
+;; Markdown mode configuration
+(use-package markdown-mode
+  :ensure t
+  :mode ("\\.md\\'" . markdown-mode)
+  :hook ((markdown-mode . visual-line-mode))
+  :config
+  ;; Provide fallback in case of installation issues
+  (unless (fboundp 'markdown-mode)
+    (define-derived-mode markdown-mode text-mode "Markdown"
+      "Major mode for editing Markdown files.
+This is a fallback mode in case the package couldn't be installed.")
+    (message "Using fallback markdown-mode")))
+#+end_src
+
+** Terminal and shell integration
+
+Integration with terminal tools enables command-line workflows and enhanced interaction with the file system.
+
+#+begin_src emacs-lisp :tangle lisp/jd-notes.el
+;;; ----------------------------------------------------------------------------
+;;; Terminal and shell integration
+;;; ----------------------------------------------------------------------------
+
+;; Eshell configuration for command-line workflows
+(use-package eshell
+  :init
+  (defun jd--setup-eshell ()
+    "Configure eshell with useful keybindings."
+    (keymap-set eshell-mode-map "C-r" 'consult-history))
+  :hook ((eshell-mode . jd--setup-eshell)))
+
+;; Eat: Emulate A Terminal
+(use-package eat
+  :custom
+  (eat-term-name "xterm")
+  :config
+  (eat-eshell-mode)                     ; use Eat to handle term codes
+  (eat-eshell-visual-command-mode))     ; commands like less will be handled by Eat
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-notes.el
+(provide 'jd-notes)
+;;; jd-notes.el ends here
+#+end_src
+
+* Development Tools (jd-dev.el)
+
+This module provides a comprehensive development environment with tree-sitter integration, version control through Magit, and modern language support using Eglot as the LSP client.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; jd-dev.el --- Development tools -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Configuration for programming language support and
+;; development tools.
+
+;;; Code:
+#+end_src
+
+** Tree-sitter configuration
+
+Tree-sitter provides superior syntax highlighting and structural editing capabilities. This configuration remaps traditional modes to their tree-sitter equivalents where available.
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; ----------------------------------------------------------------------------
+;;; Treesitter configuration
+;;; ----------------------------------------------------------------------------
+
+(use-package emacs
+  :config
+  ;; Tell Emacs to prefer the treesitter mode
+  (setq major-mode-remap-alist
+        '((yaml-mode . yaml-ts-mode)
+          (bash-mode . bash-ts-mode)
+          (js2-mode . js-ts-mode)
+          (typescript-mode . typescript-ts-mode)
+          (json-mode . json-ts-mode)
+          (css-mode . css-ts-mode)
+          (python-mode . python-ts-mode)))
+  :hook
+  ((prog-mode . electric-pair-mode)))
+#+end_src
+
+** Version control with Magit
+
+Magit provides a comprehensive interface to Git within Emacs.
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; ----------------------------------------------------------------------------
+;;; Version Control - Magit
+;;; ----------------------------------------------------------------------------
+
+(use-package magit
+  :bind (("C-x g" . magit-status)))
+#+end_src
+
+** Common file type support
+
+Basic support for common configuration file formats.
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; ----------------------------------------------------------------------------
+;;; Common file type support
+;;; ----------------------------------------------------------------------------
+
+(use-package yaml-mode)
+
+(use-package json-mode)
+#+end_src
+
+** Tree-sitter integration
+
+Enhanced syntax highlighting and parsing capabilities through tree-sitter integration.
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; ----------------------------------------------------------------------------
+;;; Tree-sitter for better syntax highlighting
+;;; ----------------------------------------------------------------------------
+
+(use-package tree-sitter
+  :init
+  (use-package tree-sitter-langs)
+  :config
+  (require 'tree-sitter)
+  (require 'tree-sitter-hl)
+  (require 'tree-sitter-langs)
+  (require 'tree-sitter-debug)
+  (require 'tree-sitter-query)
+  (global-tree-sitter-mode))
+#+end_src
+
+** Language-specific configuration
+
+Specialized configuration for specific programming languages and tools.
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; ----------------------------------------------------------------------------
+;;; Language-specific configuration
+;;; ----------------------------------------------------------------------------
+
+;; Terraform Mode
+(use-package terraform-mode
+  :custom (terraform-indent-level 2)
+  :config
+  (defun jd--terraform-mode-init ()
+    "Initialize terraform mode with additional features."
+    (outline-minor-mode 1))
+
+  (add-hook 'terraform-mode-hook 'jd--terraform-mode-init))
+#+end_src
+
+** Project management
+
+Integration with project.el and Consult for efficient project navigation and management.
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; ----------------------------------------------------------------------------
+;;; Project management with project.el and Consult
+;;; ----------------------------------------------------------------------------
+
+(use-package project
+  :custom
+  ;; Define the most useful commands when switching projects
+  (project-switch-commands
+   '((project-find-file "Find file" ?f)
+     (consult-ripgrep "Search" ?s)
+     (magit-status "Magit" ?m)
+     (project-dired "Dired" ?d)))
+
+  :bind
+  ;; Most useful project commands
+  (("C-c p f" . project-find-file)    ; Find file in project
+   ("C-c p s" . consult-ripgrep)      ; Search in project
+   ("C-c p d" . project-find-dir)     ; Find directory in project
+   ("C-c p b" . project-switch-to-buffer) ; Switch to project buffer
+   ("C-c p p" . project-switch-project) ; Switch projects
+   ("C-c p m" . magit-status))        ; Magit in current project
+
+  :config
+  ;; Add magit integration - simplified
+  (defun magit-project-status ()
+    "Run `magit-status` in the current project's root directory."
+    (interactive)
+    (let ((dir (project-root (project-current t))))
+      (magit-status dir)))
+
+  ;; Add which-key descriptions for project commands
+  (with-eval-after-load 'which-key
+    ;; Top-level project prefix
+    (which-key-add-key-based-replacements "C-c p" "Project")
+
+    ;; Individual project commands
+    (which-key-add-key-based-replacements "C-c p f" "Find file")
+    (which-key-add-key-based-replacements "C-c p s" "Search (ripgrep)")
+    (which-key-add-key-based-replacements "C-c p d" "Find directory")
+    (which-key-add-key-based-replacements "C-c p b" "Switch buffer")
+    (which-key-add-key-based-replacements "C-c p p" "Switch project")
+    (which-key-add-key-based-replacements "C-c p m" "Magit status")))
+#+end_src
+
+** LSP integration
+
+Eglot provides a lightweight LSP client for modern language server integration.
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+;;; ----------------------------------------------------------------------------
+;;; LSP client - Eglot
+;;; ----------------------------------------------------------------------------
+
+(use-package eglot
+  :custom
+  (eglot-send-changes-idle-time 0.1)
+  (eglot-extend-to-xref t)              ; activate Eglot in referenced non-project files
+  :config
+  (fset #'jsonrpc--log-event #'ignore)) ; massive perf boost---don't log every event
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-dev.el
+(provide 'jd-dev)
+;;; jd-dev.el ends here
+#+end_src
+
+* Journaling System (jd-journal.el)
+
+This module provides an ADHD-friendly journaling system designed for frictionless capture and review. It prioritizes minimal cognitive load during capture to help build a sustainable habit, using temporal organization over complex categorization.
+
+Key principles:
+- Capture first, organize later - Remove barriers to getting thoughts down
+- Temporal over topical - Minimize decision fatigue during capture
+- AI-assisted review - Leverage AI to identify patterns without manual organization
+- Incremental complexity - Start simple, add features as habits solidify
+- Habit-building focus - Support consistent journaling habits
+- Low learning curve - Prioritize discoverability over efficiency
+
+** Core setup
+
+The module builds on Denote for file management and uses Calendar for date handling.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+;;; jd-journal.el --- ADHD-friendly journaling system -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Code:
+
+(require 'denote)
+(require 'calendar)
+#+end_src
+
+** Package configuration
+
+Denote-journal provides the foundation for our journaling system, while Tempel enables structured templates for different types of entries.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defcustom jd-journal-keyword "journal"
+  "Default keyword for journal entries."
+  :type 'string
+  :group 'denote)
+
+(use-package denote-journal
+  :ensure t
+  :after denote
+  :custom
+  (denote-journal-keyword jd-journal-keyword)
+  (denote-journal-date-title-format "%A, %B %e %Y")
+  :config
+  (setq denote-journal-directory (expand-file-name "journal" denote-directory))
+  (unless (file-exists-p denote-journal-directory)
+    (make-directory denote-journal-directory t)))
+
+(use-package denote-menu
+  :ensure t
+  :after denote)
+
+(use-package tempel
+  :ensure t
+  :bind (("M-+" . tempel-complete)
+         ("M-*" . tempel-insert))
+  :init
+  (defun jd-journal-setup-capf ()
+    (setq-local completion-at-point-functions
+                (cons #'tempel-expand
+                      completion-at-point-functions)))
+
+  (add-hook 'text-mode-hook 'jd-journal-setup-capf)
+  (add-hook 'org-mode-hook 'jd-journal-setup-capf)
+  (add-hook 'markdown-mode-hook 'jd-journal-setup-capf)
+
+  :config
+  ;; Initialize tempel-template-sources if not already defined
+  (unless (boundp 'tempel-template-sources)
+    (setq tempel-template-sources nil))
+  (add-hook 'text-mode-hook #'tempel-abbrev-mode)
+  
+  ;; Set up journal templates after tempel is loaded
+  (setq jd-journal-templates
+        '((morning-startup . (jd-journal--format-template 'morning-startup))
+          (evening-winddown . (jd-journal--format-template 'evening-winddown))
+          (quick-thought . (jd-journal--format-template 'quick-thought))
+          (energy-check . (jd-journal--format-template 'energy-check))
+          (breakthrough . (jd-journal--format-template 'breakthrough))))
+  
+  (add-to-list 'tempel-template-sources 'jd-journal-templates))
+#+end_src
+
+** Template formatting
+
+Smart template formatting that adapts to the current major mode, supporting both Org and Markdown formats.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defun jd-journal--get-format-syntax ()
+  (cond
+   ((eq major-mode 'org-mode)
+    '(:h1 "* " :h2 "** " :h3 "*** " :bold "*" :bold-end "*"
+      :table-row "| " :table-sep " | " :table-end " |"))
+   ((or (eq major-mode 'markdown-mode) (eq major-mode 'gfm-mode))
+    '(:h1 "# " :h2 "## " :h3 "### " :bold "**" :bold-end "**"
+      :table-row "| " :table-sep " | " :table-end " |"))
+   (t
+    '(:h1 "" :h2 "" :h3 "" :bold "" :bold-end ""
+      :table-row "" :table-sep ": " :table-end ""))))
+#+end_src
+
+** Journal templates
+
+The template system provides structured formats for common journaling needs:
+- Morning startup - Begin the day with intention setting
+- Evening winddown - Reflect on the day's events and achievements
+- Quick thoughts - Capture ideas with minimal friction
+- Energy checks - Track energy levels and mood patterns
+- Breakthroughs - Document and analyze key insights
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defun jd-journal--format-template (template-name)
+  (let ((fmt (jd-journal--get-format-syntax)))
+    (pcase template-name
+      ('morning-startup
+       `(,(plist-get fmt :h1) "Morning Startup (" (format-time-string "%H:%M") ")" n
+         "Energy: " (p "1-10: " energy) "/10" n
+         "Mood: " (p "feeling: " mood) n
+         n
+         ,(plist-get fmt :h2) "Focus areas today" n
+         "- " (p "priority 1: " p1) n
+         "- " (p "priority 2: " p2) n
+         "- " (p "priority 3: " p3) n
+         n
+         ,(plist-get fmt :h2) "Intentions" n
+         (p "what mindset/approach for today: " intention) n))
+
+      ('evening-winddown
+       `(,(plist-get fmt :h1) "Evening Winddown (" (format-time-string "%H:%M") ")" n
+         "Energy: " (p "1-10: " energy) "/10" n
+         "Mood: " (p "feeling: " mood) n
+         n
+         ,(plist-get fmt :h2) "Today's wins" n
+         "- " (p "accomplishment 1: " win1) n
+         "- " (p "accomplishment 2: " win2) n
+         n
+         ,(plist-get fmt :h2) "Challenges/blocks" n
+         "- " (p "what was difficult: " challenge) n
+         n
+         ,(plist-get fmt :h2) "Tomorrow's focus" n
+         "- " (p "main priority: " tomorrow) n
+         n
+         ,(plist-get fmt :h2) "Reflection" n
+         (p "what did I learn about myself today: " reflection)))
+
+      ('quick-thought
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - " (p "topic: " topic) n
+         (p "thought: ")))
+
+      ('energy-check
+       (if (eq major-mode 'org-mode)
+         ;; Org-mode table format
+         `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Energy Check" n
+           "| Energy | " (p "1-10: " energy) "/10 |" n
+           "| Focus  | " (p "1-10: " focus) "/10 |" n
+           "| Mood   | " (p "feeling: " mood) " |" n
+           n
+           "What's affecting me: " (p "internal/external factors: " factors))
+         ;; Markdown/text format
+         `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Energy Check" n
+           "Energy: " (p "1-10: " energy) "/10" n
+           "Focus: " (p "1-10: " focus) "/10" n
+           "Mood: " (p "feeling: " mood) n
+           n
+           "What's affecting me: " (p "internal/external factors: " factors))))
+
+      ('breakthrough
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - "
+         ,(plist-get fmt :bold) "Breakthrough!" ,(plist-get fmt :bold-end)
+         ,(if (eq major-mode 'text-mode) " [!]" " 🎯") n
+         ,(plist-get fmt :h3) "What I figured out" n
+         (p "the insight: " insight) n
+         n
+         ,(plist-get fmt :h3) "Why this matters" n
+         (p "significance: " significance) n
+         n
+         ,(plist-get fmt :h3) "Next steps" n
+         (p "what to do with this: " next))))))
+
+#+end_src
+
+** Core journaling functions
+
+Essential functions for creating and managing journal entries, designed for minimal friction and quick access. Each function focuses on a single task:
+- Today's journal - Create or open today's entry
+- Append entry - Add a new timestamped entry
+- Yesterday - Quick access to yesterday's journal
+- Date selection - Open journal for any date
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defun jd-journal--ensure-newlines ()
+  (unless (looking-back "\n\n" (- (point) 2))
+    (if (looking-back "\n" (1- (point)))
+        (insert "\n")
+      (insert "\n\n"))))
+
+(defun jd-journal-get-todays-file ()
+  (denote-journal-path-to-new-or-existing-entry))
+
+(defun jd-journal-today ()
+  (interactive)
+  (denote-journal-new-or-existing-entry))
+
+(defun jd-journal-append-entry ()
+  (interactive)
+  (find-file (jd-journal-get-todays-file))
+  (goto-char (point-max))
+  (unless (bolp) (insert "\n\n"))
+  (let ((fmt (jd-journal--get-format-syntax)))
+    (insert (format "%s%s - " (plist-get fmt :h2) (format-time-string "%H:%M"))))
+  (message "Ready to capture entry..."))
+
+(defun jd-journal-yesterday ()
+  (interactive)
+  (let ((yesterday (time-subtract (current-time) (days-to-time 1))))
+    (denote-journal-new-or-existing-entry yesterday)))
+
+(defun jd-journal-date ()
+  (interactive)
+  (let ((date (denote-date-prompt)))
+    (denote-journal-new-or-existing-entry date)))
+#+end_src
+
+** Navigation and review
+
+Functions for browsing, searching, and reviewing journal entries. These tools support:
+- Listing all journal entries in Dired
+- Full-text search across all entries
+- Menu-based browsing and filtering
+- Weekly review preparation
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defun jd-journal-list ()
+  (interactive)
+  (let ((files (denote-directory-files
+                (concat "_" (regexp-quote jd-journal-keyword)))))
+    (if files
+        (dired (cons "Journal Entries" files))
+      (message "No journal entries found"))))
+
+(defun jd-journal-grep ()
+  (interactive)
+  (denote-grep))
+
+(defun jd-journal-menu ()
+  (interactive)
+  (if (fboundp 'denote-menu-list-notes)
+      (progn
+        (denote-menu-list-notes)
+        (denote-menu-filter (concat "_" jd-journal-keyword)))
+    (message "denote-menu is not installed")))
+
+(defun jd-journal-weekly-review ()
+  (interactive)
+  (let* ((today (current-time))
+         (week-ago (time-subtract today (days-to-time 7)))
+         (today-str (format-time-string "%Y%m%d" today))
+         (week-ago-str (format-time-string "%Y%m%d" week-ago))
+         (regexp (format "%s.*_journal\\|%s.*_journal"
+                        week-ago-str today-str)))
+    (if (fboundp 'denote-menu-list-notes)
+        (progn
+          (denote-menu-list-notes)
+          (denote-menu-filter regexp))
+      (let ((files (denote-directory-files regexp)))
+        (if files
+            (dired (cons "Journal Weekly Review" files))
+          (message "No journal entries found for the past week"))))))
+#+end_src
+
+** AI integration
+
+AI-powered analysis tools that help identify patterns, extract insights, and maintain journaling momentum. Supports multiple AI backends (GPTel, ChatGPT Shell) for flexibility.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defun jd-journal-analyze-with-gptel ()
+  (interactive)
+  (let ((journal (jd-journal-get-todays-file)))
+    (find-file journal)
+    (let ((journal-content (buffer-substring-no-properties (point-min) (point-max)))
+          (analysis-buffer-name "*Journal Analysis*"))
+      (let ((chat-buffer (gptel analysis-buffer-name)))
+        (with-current-buffer chat-buffer
+          (goto-char (point-max))
+          (insert "Please analyze this journal entry and provide:
+1. Key insights about my day
+2. Patterns you notice in my thoughts or behaviors
+3. Suggestions that might be helpful for tomorrow
+4. Any questions that might prompt useful reflection
+
+Here's my journal entry:
+
+" journal-content)
+          (gptel-send))
+
+        (when-let ((buffer-window (get-buffer-window analysis-buffer-name)))
+          (select-window buffer-window))
+
+        (unless (get-buffer-window analysis-buffer-name)
+          (display-buffer chat-buffer)
+          (message "Analysis in progress... Results will appear in the Journal Analysis buffer."))))))
+
+(defun jd-journal-analyze-current-buffer-with-gptel ()
+  (interactive)
+  (if (and buffer-file-name
+           (string-match-p (concat "_" (regexp-quote jd-journal-keyword)) buffer-file-name))
+      (progn
+        (when (and (boundp 'gptel-backend)
+                   (stringp gptel-backend)
+                   (string= gptel-backend "Copilot"))
+          (message "Warning: Using Copilot backend. If analysis hangs, try C-c a o to switch to OpenAI."))
+
+        (let ((journal-content (buffer-substring-no-properties (point-min) (point-max)))
+              (analysis-buffer-name "*Journal Analysis*"))
+          (let ((chat-buffer (gptel analysis-buffer-name)))
+            (with-current-buffer chat-buffer
+              (goto-char (point-max))
+              (insert "Please analyze this journal entry and provide:
+1. Key insights about my day
+2. Patterns you notice in my thoughts or behaviors
+3. Suggestions that might be helpful for tomorrow
+4. Any questions that might prompt useful reflection
+
+Here's my journal entry:
+
+" journal-content)
+              (gptel-send))
+
+            (when-let ((buffer-window (get-buffer-window analysis-buffer-name)))
+              (select-window buffer-window))
+
+            (unless (get-buffer-window analysis-buffer-name)
+              (display-buffer chat-buffer)))))
+    (message "This doesn't appear to be a journal entry. Use M-x jd-journal-today first.")))
+
+(defun jd-journal-weekly-ai-review ()
+  (interactive)
+  (let* ((today (current-time))
+         (week-ago (time-subtract today (days-to-time 7)))
+         (today-str (format-time-string "%Y-%m-%d" today))
+         (week-ago-str (format-time-string "%Y-%m-%d" week-ago))
+         (buffer (get-buffer-create "*Weekly Journal Review*"))
+          (files (denote-directory-files
+                  (concat "_" jd-journal-keyword))))
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert (format "# Weekly Journal Review: %s to %s\n\n"
+                      week-ago-str today-str))
+      (dolist (file files)
+        (let ((file-date (format-time-string "%Y-%m-%d"
+                          (date-to-time (denote-extract-id-from-file-name file)))))
+          (when (and (string>= file-date week-ago-str)
+                     (string<= file-date today-str))
+            (insert (format "## %s\n\n" file-date))
+            (insert-file-contents file)
+            (goto-char (point-max))
+            (insert "\n\n"))))
+      (goto-char (point-min))
+      (display-buffer buffer))))
+
+(defun jd-journal-weekly-ai-patterns ()
+  (interactive)
+  (jd-journal-weekly-ai-review)
+  (with-current-buffer "*Weekly Journal Review*"
+    (gptel-send (point-min) (point-max)
+               "Please analyze these journal entries from the past week and provide:
+1. Common themes or patterns in thoughts, emotions, or activities
+2. Areas where I seem to be making progress
+3. Potential challenges or blocks that appear repeatedly
+4. Suggestions for the coming week based on these observations
+5. A brief summary of the overall mood and energy trends")))
+#+end_src
+
+** ADHD-friendly helpers
+
+Special functions designed to minimize friction and support habit formation. These helpers make it as easy as possible to maintain a consistent journaling practice.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defun jd-journal-quick-capture ()
+  (interactive)
+  (let ((current-window (selected-window)))
+    (jd-journal-append-entry)
+    (evil-insert-state)))
+
+(defun jd-journal-capture-last-thought ()
+  (interactive)
+  (jd-journal-append-entry)
+  (yank)
+  (newline)
+  (message "Captured clipboard content to journal"))
+
+(defun jd-journal-show-status ()
+  (interactive)
+  (let* ((today (current-time))
+         (week-ago (time-subtract today (days-to-time 7)))
+         (month-ago (time-subtract today (days-to-time 30)))
+         (today-str (format-time-string "%Y-%m-%d" today))
+         (week-ago-str (format-time-string "%Y-%m-%d" week-ago))
+         (month-ago-str (format-time-string "%Y-%m-%d" month-ago))
+          (files (denote-directory-files
+                  (concat "_" (regexp-quote jd-journal-keyword))))
+         (week-count 0)
+         (month-count 0)
+         (buffer (get-buffer-create "*Journal Status*")))
+    (dolist (file files)
+      (let ((file-date (format-time-string "%Y-%m-%d"
+                        (date-to-time (denote-extract-id-from-file-name file)))))
+        (when (and (string>= file-date week-ago-str)
+                   (string<= file-date today-str))
+          (setq week-count (1+ week-count)))
+        (when (and (string>= file-date month-ago-str)
+                   (string<= file-date today-str))
+          (setq month-count (1+ month-count)))))
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert "# Journal Status\n\n")
+      (insert (format "- Past 7 days: %d entries\n" week-count))
+      (insert (format "- Past 30 days: %d entries\n\n" month-count))
+      (let ((week-percent (* 100.0 (/ week-count 7.0))))
+        (insert (format "Weekly consistency: %.1f%%\n\n" week-percent))
+        (insert "Current streak: ")
+        (let ((streak 0)
+              (current-date today))
+          (while (let* ((date-str (format-time-string "%Y%m%d" current-date))
+                         (day-pattern (concat date-str "T.*_" (regexp-quote jd-journal-keyword)))
+                         (day-files (denote-directory-files day-pattern)))
+                  (if day-files
+                      (progn (setq streak (1+ streak)) t)
+                    nil))
+            (setq current-date (time-subtract current-date (days-to-time 1))))
+          (insert (format "%d days" streak))))
+      (display-buffer buffer))))
+#+end_src
+
+** Keybindings and initialization
+
+Comprehensive keybindings that make all journaling functions easily accessible, with which-key integration for discoverability.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal.el
+(defvar jd-journal-map (make-sparse-keymap)
+  "Keymap for journal commands.")
+
+(define-key global-map (kbd "C-c j") jd-journal-map)
+(define-key jd-journal-map (kbd "t") #'jd-journal-today)
+(define-key jd-journal-map (kbd "a") #'jd-journal-append-entry)
+(define-key jd-journal-map (kbd "y") #'jd-journal-yesterday)
+(define-key jd-journal-map (kbd "d") #'jd-journal-date)
+(define-key jd-journal-map (kbd "l") #'jd-journal-list)
+(define-key jd-journal-map (kbd "g") #'jd-journal-grep)
+(define-key jd-journal-map (kbd "m") #'jd-journal-menu)
+(define-key jd-journal-map (kbd "w") #'jd-journal-weekly-review)
+(define-key jd-journal-map (kbd "q") #'jd-journal-quick-capture)
+(define-key jd-journal-map (kbd "p") #'jd-journal-capture-last-thought)
+(define-key jd-journal-map (kbd "s") #'jd-journal-show-status)
+(define-key jd-journal-map (kbd "A") #'jd-journal-analyze-with-gptel)
+(define-key jd-journal-map (kbd ".") #'jd-journal-analyze-current-buffer-with-gptel)
+(define-key jd-journal-map (kbd "W") #'jd-journal-weekly-ai-patterns)
+
+;; Add a global binding for quick capture
+(global-set-key (kbd "C-c C-j") #'jd-journal-quick-capture)
+
+;; Add which-key descriptions for the journal keymap
+(which-key-add-key-based-replacements "C-c j" "Journal")
+(which-key-add-key-based-replacements
+  "C-c j t" "Today's journal"
+  "C-c j a" "Append entry"
+  "C-c j y" "Yesterday's journal"
+  "C-c j d" "Journal by date"
+  "C-c j l" "List journals"
+  "C-c j g" "Search journals"
+  "C-c j m" "Journal menu"
+  "C-c j w" "Weekly review"
+  "C-c j q" "Quick capture"
+  "C-c j p" "Paste as entry"
+  "C-c j s" "Journal status"
+  "C-c j A" "Analyze with gptel"
+  "C-c j ." "Analyze current buffer"
+  "C-c j W" "Weekly patterns analysis")
+
+(provide 'jd-journal)
+;;; jd-journal.el ends here
+#+end_src
+
+* AI Integration (jd-ai.el)
+
+This module provides seamless integration with AI assistants including GPTel, ChatGPT Shell, and GitHub Copilot. It focuses on making AI tools easily accessible while maintaining a consistent interface.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-ai.el
+;;; jd-ai.el --- AI assistance integration -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Code:
+#+end_src
+
+** GPTel configuration
+
+GPTel provides a clean, Emacs-native interface to OpenAI's API, with support for multiple models and conversation history.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ai.el
+(use-package gptel
+  :ensure t
+  :custom
+  (gptel-api-key (getenv "OPENAI_API_KEY"))
+  (gptel-default-mode 'org-mode)
+  (gptel-model "gpt-4")
+  (gptel-temperature 0.7)
+  :config
+  (gptel-make-openai "openai" :key gptel-api-key :stream t))
+#+end_src
+
+** ChatGPT Shell integration
+
+ChatGPT Shell provides a more interactive, REPL-like experience for AI interactions.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ai.el
+(use-package chatgpt-shell
+  :ensure t
+  :custom
+  ((chatgpt-shell-openai-key (getenv "OPENAI_API_KEY"))
+   (chatgpt-shell-model-version "gpt-4")
+   (chatgpt-shell-system-prompt "You are a helpful AI assistant. Be concise and direct in your responses.")
+   (chatgpt-shell-welcome-message "ChatGPT Shell ready. Use C-c C-c to submit queries."))
+  :config
+  (setq chatgpt-shell-display-function 'display-buffer))
+
+(use-package dall-e-shell
+  :ensure t
+  :custom
+  (dall-e-shell-openai-key (getenv "OPENAI_API_KEY")))
+#+end_src
+
+** GitHub Copilot
+
+Copilot integration for intelligent code completion and pair programming assistance.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ai.el
+(use-package copilot
+  :ensure t
+  :hook (prog-mode . copilot-mode)
+  :bind (:map copilot-completion-map
+              ("C-<tab>" . 'copilot-accept-completion)
+              ("C-TAB" . 'copilot-accept-completion))
+  :custom
+  (copilot-idle-delay 0.1)
+  (copilot-network-proxy nil)
+  :config
+  (setq copilot-indent-offset-warning-disable t))
+#+end_src
+
+** Helper functions
+
+Utility functions that make AI tools more accessible and integrate them with other parts of the configuration.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ai.el
+(defun jd-ai-copilot-or-gptel ()
+  "Use Copilot in prog-mode, GPTel otherwise."
+  (interactive)
+  (if (derived-mode-p 'prog-mode)
+      (if (and (boundp 'copilot-mode) copilot-mode)
+          (copilot-complete)
+        (message "Copilot mode is not enabled"))
+    (gptel-menu)))
+
+(defun jd-ai-chatgpt-region (start end)
+  "Send region to ChatGPT and display response."
+  (interactive "r")
+  (let ((text (buffer-substring-no-properties start end)))
+    (chatgpt-shell)
+    (with-current-buffer "*chatgpt*"
+      (goto-char (point-max))
+      (insert text)
+      (chatgpt-shell-send-to-buffer))))
+#+end_src
+
+** Keybindings
+
+Consistent keybindings for AI tools across different contexts.
+
+#+begin_src emacs-lisp :tangle lisp/jd-ai.el
+(global-set-key (kbd "C-c a") (make-sparse-keymap))
+(global-set-key (kbd "C-c a g") 'gptel)
+(global-set-key (kbd "C-c a c") 'chatgpt-shell)
+(global-set-key (kbd "C-c a d") 'dall-e-shell)
+(global-set-key (kbd "C-c a t") 'jd-ai-copilot-or-gptel)
+(global-set-key (kbd "C-c a r") 'jd-ai-chatgpt-region)
+
+(which-key-add-key-based-replacements
+  "C-c a" "AI Tools"
+  "C-c a g" "GPTel"
+  "C-c a c" "ChatGPT Shell"
+  "C-c a d" "DALL-E Shell"
+  "C-c a t" "Smart Complete"
+  "C-c a r" "Ask ChatGPT")
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-ai.el
+(provide 'jd-ai)
+;;; jd-ai.el ends here
+#+end_src
+
+* Theme Management (jd-themes.el)
+
+This module provides a comprehensive theme management system for Emacs, focusing on Prot's themes (Modus, EF, Doric) and custom font configurations using Fontaine. It allows for easy switching between theme collections and individual themes, mode-specific font configurations, and persistent theme preferences.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+;;; jd-themes.el --- Theme and font management -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; This module provides a comprehensive theme management system for Emacs,
+;; focusing on Prot's themes (Modus, EF, Doric) and custom font configurations
+;; using Fontaine. It allows for:
+;;
+;; - Easy switching between theme collections and individual themes
+;; - Mode-specific font configurations
+;; - Customization of theme appearances
+;; - Persistent theme and font preferences
+
+;;; Code:
+
+(require 'fontaine)
+#+end_src
+
+** Theme configuration variables
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(defgroup jd-themes nil
+  "Theme management settings."
+  :group 'appearance)
+
+(defcustom jd-themes-default-theme 'modus-vivendi-tinted
+  "Default theme to load at startup.
+Can be any of the available Modus, EF, or Doric themes."
+  :type 'symbol
+  :group 'jd-themes)
+
+(defcustom jd-themes-auto-mode-fonts nil
+  "Whether to automatically set fonts based on major mode.
+When non-nil, will apply mode-specific font presets when available."
+  :type 'boolean
+  :group 'jd-themes)
+#+end_src
+
+** Fontaine presets
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(defvar jd-themes-fontaine-file
+      (expand-file-name "fontaine-latest-state.eld" user-emacs-directory)
+  "File to save fontaine state.")
+
+(defun jd-themes-setup-fontaine ()
+  "Set up fontaine with presets for various contexts."
+  (setq fontaine-latest-state-file jd-themes-fontaine-file)
+  
+  (setq fontaine-presets
+        '((small
+           :default-family "Aporetic Sans Mono"
+           :default-height 80
+           :variable-pitch-family "Aporetic Sans")
+          
+          (regular
+           :default-family "Aporetic Sans Mono"
+           :default-height 160
+           :variable-pitch-family "Aporetic Sans"
+           :fixed-pitch-family "Aporetic Sans Mono")
+          
+          (medium
+           :default-weight semilight
+           :default-height 115
+           :bold-weight extrabold)
+          
+          (large
+           :inherit medium
+           :default-height 150)
+          
+          (presentation
+           :default-height 180)
+           
+          ;; Mode-specific presets
+          (org
+           :inherit regular
+           :variable-pitch-height 180
+           :variable-pitch-weight light)
+           
+          (markdown
+           :inherit regular
+           :variable-pitch-height 170)
+           
+          (programming
+           :default-family "Aporetic Sans Mono"
+           :default-height 150
+           :line-spacing 0.15)
+           
+          (terminal
+           :default-family "Aporetic Sans Mono"
+           :default-height 130
+           :line-spacing 0)
+           
+          (denote
+           :inherit regular
+           :variable-pitch-height 170
+           :default-weight light)))
+
+  ;; Set the last preset or fall back to regular
+  (fontaine-set-preset (or (fontaine-restore-latest-preset) 'regular))
+  
+  ;; Persist the latest font preset
+  (fontaine-mode 1))
+#+end_src
+
+** Theme collections
+
+Load and configure different theme collections with proper initialization.
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(defun jd-themes-load-modus ()
+  "Load and configure Modus themes."
+  (use-package emacs
+    :config
+    ;; Enable the package
+    (require-theme 'modus-themes)
+    
+    ;; Customize Modus themes
+    (setq modus-themes-disable-other-themes t
+          modus-themes-mixed-fonts t
+          modus-themes-italic-constructs t
+          modus-themes-bold-constructs nil
+          modus-themes-org-blocks 'gray-background
+          modus-themes-headings
+          '((1 . (variable-pitch 1.5))
+            (2 . (1.3))
+            (agenda-date . (1.3))
+            (agenda-structure . (variable-pitch light 1.8))
+            (t . (1.1))))
+    
+    ;; Make customizations to the themes
+    (setq modus-themes-common-palette-overrides
+          '((border-mode-line-active unspecified)
+            (border-mode-line-inactive unspecified)
+            (fringe unspecified)))))
+
+(defun jd-themes-load-ef ()
+  "Load and configure EF themes."
+  (use-package ef-themes
+    :ensure t
+    :config
+    ;; Enable the package
+    (require 'ef-themes)
+    
+    ;; Customize EF themes
+    (setq ef-themes-mixed-fonts t
+          ef-themes-variable-pitch-ui nil
+          ef-themes-headings
+          '((1 . (variable-pitch 1.5))
+            (2 . (1.3))
+            (agenda-date . (1.3))
+            (agenda-structure . (variable-pitch light 1.8))
+            (t . (1.1))))
+    
+    ;; Override palette values
+    (setq ef-themes-common-palette-overrides
+          '((border-mode-line-active unspecified)
+            (border-mode-line-inactive unspecified)))))
+
+(defun jd-themes-load-doric ()
+  "Load and configure Doric themes."
+  (use-package doric-themes
+    :ensure t
+    :config
+    ;; Load the theme package properly
+    (require 'doric-themes)
+    
+    ;; Configure Doric themes
+    (setq doric-themes-mixed-fonts t
+          doric-themes-variable-pitch-ui nil
+          doric-themes-bold-constructs t
+          doric-themes-mode-line-accented nil)))
+#+end_src
+
+** Theme switching functions
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(defvar jd-themes--collection-map
+  '((modus . (modus-operandi modus-operandi-tinted modus-operandi-deuteranopia
+             modus-vivendi modus-vivendi-tinted modus-vivendi-deuteranopia))
+    (ef . (ef-autumn ef-bio ef-blue ef-cherie ef-cyprus ef-dark ef-day
+             ef-deuteranopia-dark ef-deuteranopia-light ef-duo-dark
+             ef-duo-light ef-elea-dark ef-elea-light ef-frost ef-kassio
+             ef-light ef-maris-dark ef-maris-light ef-melissa-dark
+             ef-melissa-light ef-night ef-rosa ef-spring ef-summer
+             ef-symbiosis ef-trio-dark ef-trio-light ef-tritanopia-dark
+             ef-tritanopia-light ef-winter ef-wisteria))
+    (doric . (doric-dark doric-light doric-fire doric-water doric-wind
+              doric-obsidian doric-marble doric-earth doric-plum doric-cherry)))
+  "Association list mapping theme collection names to their themes.")
+
+(defun jd-themes-list-all ()
+  "Get a list of all available themes across collections."
+  (apply #'append (mapcar #'cdr jd-themes--collection-map)))
+
+(defun jd-themes-get-collection (theme)
+  "Get the collection name that THEME belongs to."
+  (catch 'found
+    (dolist (collection jd-themes--collection-map)
+      (when (memq theme (cdr collection))
+        (throw 'found (car collection))))))
+
+(defun jd-themes-load-theme (theme)
+  "Load the specified THEME.
+Ensures the appropriate theme collection is initialized first."
+  (interactive
+   (list (intern (completing-read "Select theme: " 
+                                  (mapcar #'symbol-name (jd-themes-list-all))))))
+  
+  ;; Ensure the theme's collection is loaded
+  (let ((collection (jd-themes-get-collection theme)))
+    (cond
+     ((eq collection 'modus) (jd-themes-load-modus))
+     ((eq collection 'ef) (jd-themes-load-ef))
+     ((eq collection 'doric) (jd-themes-load-doric))
+     (t (message "Unknown theme collection for %s" theme))))
+  
+  ;; Load the selected theme
+  (mapc #'disable-theme custom-enabled-themes)
+  (load-theme theme t)
+  
+  ;; Save the selection as the default
+  (customize-save-variable 'jd-themes-default-theme theme)
+  (message "Loaded theme: %s" theme))
+
+(defun jd-themes-toggle-dark-light ()
+  "Toggle between dark and light variants within the same theme collection."
+  (interactive)
+  (let* ((current-theme (car custom-enabled-themes))
+         (collection (jd-themes-get-collection current-theme))
+         (themes (cdr (assq collection jd-themes--collection-map)))
+         ;; Determine if current theme is dark
+         (is-dark (cond
+                   ;; Modus themes
+                   ((eq collection 'modus)
+                    (string-match-p "vivendi" (symbol-name current-theme)))
+                   
+                   ;; EF themes - use the comprehensive list of dark themes
+                   ((eq collection 'ef)
+                    (member current-theme '(ef-autumn ef-bio ef-blue ef-cyprus ef-dark
+                                           ef-deuteranopia-dark ef-duo-dark ef-elea-dark
+                                           ef-frost ef-kassio ef-maris-dark ef-melissa-dark
+                                           ef-night ef-symbiosis ef-trio-dark ef-tritanopia-dark
+                                           ef-winter)))
+                   
+                   ;; Doric themes
+                   ((eq collection 'doric)
+                    (not (eq current-theme 'doric-light)))
+                   
+                   ;; Default fallback for other themes
+                   (t (string-match-p "dark\\|night" (symbol-name current-theme)))))
+         
+         ;; Filter themes to get opposite variants
+         (opposite-variants 
+          (cond
+           ;; For Modus themes, simply swap between operandi and vivendi variants
+           ((eq collection 'modus)
+            (if is-dark
+                (seq-filter (lambda (theme) (string-match-p "operandi" (symbol-name theme))) themes)
+              (seq-filter (lambda (theme) (string-match-p "vivendi" (symbol-name theme))) themes)))
+           
+           ;; For EF themes, use the known light/dark theme lists
+           ((eq collection 'ef)
+            (if is-dark
+                (seq-filter (lambda (theme) 
+                             (not (member theme '(ef-autumn ef-bio ef-blue ef-cyprus ef-dark
+                                                ef-deuteranopia-dark ef-duo-dark ef-elea-dark
+                                                ef-frost ef-kassio ef-maris-dark ef-melissa-dark
+                                                ef-night ef-symbiosis ef-trio-dark ef-tritanopia-dark
+                                                ef-winter))))
+                           themes)
+              (seq-filter (lambda (theme)
+                           (member theme '(ef-autumn ef-bio ef-blue ef-cyprus ef-dark
+                                          ef-deuteranopia-dark ef-duo-dark ef-elea-dark
+                                          ef-frost ef-kassio ef-maris-dark ef-melissa-dark
+                                          ef-night ef-symbiosis ef-trio-dark ef-tritanopia-dark
+                                          ef-winter)))
+                         themes)))
+           
+           ;; For Doric themes
+           ((eq collection 'doric)
+            (if is-dark
+                '(doric-light)  ;; Always switch to light when in any dark doric theme
+              '(doric-dark)))   ;; Always switch to dark when in light doric theme
+           
+           ;; Default case for other theme collections
+           (t (seq-filter
+               (lambda (theme)
+                 (if is-dark
+                     (not (string-match-p "dark\\|night" (symbol-name theme)))
+                   (string-match-p "dark\\|night" (symbol-name theme))))
+               themes)))))
+    
+    (if opposite-variants
+        (jd-themes-load-theme (car opposite-variants))
+      (message "No appropriate light/dark variant found in the %s collection" collection))))
+#+end_src
+
+** Theme collection cycling
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(defun jd-themes-cycle-modus ()
+  "Cycle through available Modus themes."
+  (interactive)
+  (let* ((modus-themes (cdr (assq 'modus jd-themes--collection-map)))
+         (current-theme (car custom-enabled-themes))
+         (current-index (or (seq-position modus-themes current-theme) -1))
+         (next-index (% (1+ current-index) (length modus-themes)))
+         (next-theme (nth next-index modus-themes)))
+    (jd-themes-load-theme next-theme)))
+
+(defun jd-themes-cycle-ef ()
+  "Cycle through available EF themes."
+  (interactive)
+  (let* ((ef-themes (cdr (assq 'ef jd-themes--collection-map)))
+         (current-theme (car custom-enabled-themes))
+         (current-index (or (seq-position ef-themes current-theme) -1))
+         (next-index (% (1+ current-index) (length ef-themes)))
+         (next-theme (nth next-index ef-themes)))
+    (jd-themes-load-theme next-theme)))
+
+(defun jd-themes-cycle-doric ()
+  "Cycle through available Doric themes."
+  (interactive)
+  (let* ((doric-themes (cdr (assq 'doric jd-themes--collection-map)))
+         (current-theme (car custom-enabled-themes))
+         (current-index (or (seq-position doric-themes current-theme) -1))
+         (next-index (% (1+ current-index) (length doric-themes)))
+         (next-theme (nth next-index doric-themes)))
+    (jd-themes-load-theme next-theme)))
+
+(defun jd-themes-switch-collection ()
+  "Switch between theme collections (Modus, EF, Doric)."
+  (interactive)
+  (let* ((collections '(modus ef doric))
+         (collection-names '("Modus" "EF" "Doric"))
+         (collection (intern (completing-read "Select theme collection: " collection-names nil t)))
+         (themes (cdr (assq collection jd-themes--collection-map)))
+         (theme (intern (completing-read (format "Select %s theme: " collection)
+                                        (mapcar #'symbol-name themes)))))
+    (jd-themes-load-theme theme)))
+#+end_src
+
+** Initialization function
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(defun jd-themes-setup ()
+  "Set up themes and fonts."
+  ;; Load theme collections
+  (jd-themes-load-modus)
+  (jd-themes-load-ef)
+  (jd-themes-load-doric)
+  
+  ;; Set up fontaine presets
+  (jd-themes-setup-fontaine)
+  
+  ;; Load the default theme
+  (jd-themes-load-theme jd-themes-default-theme))
+#+end_src
+
+** Keybindings
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(defvar jd-themes-map (make-sparse-keymap)
+  "Keymap for theme-related commands.")
+
+;; Theme switching bindings
+(define-key jd-themes-map (kbd "t") #'jd-themes-load-theme)
+(define-key jd-themes-map (kbd "c") #'jd-themes-switch-collection)
+(define-key jd-themes-map (kbd "d") #'jd-themes-toggle-dark-light)
+
+;; Theme cycling bindings
+(define-key jd-themes-map (kbd "m") #'jd-themes-cycle-modus)
+(define-key jd-themes-map (kbd "e") #'jd-themes-cycle-ef)
+(define-key jd-themes-map (kbd "o") #'jd-themes-cycle-doric)
+
+;; Font preset bindings
+(define-key jd-themes-map (kbd "f p") #'fontaine-set-preset)
+(define-key jd-themes-map (kbd "f r") #'fontaine-set-face-font)
+(define-key jd-themes-map (kbd "f s") #'fontaine-store-latest-preset)
+
+;; Global binding to access the theme map
+(define-key global-map (kbd "C-c T") jd-themes-map)
+
+;; Which-key integration
+(with-eval-after-load 'which-key
+  (which-key-add-key-based-replacements "C-c T" "Themes")
+  (which-key-add-key-based-replacements "C-c T t" "Load theme")
+  (which-key-add-key-based-replacements "C-c T c" "Switch collection")
+  (which-key-add-key-based-replacements "C-c T d" "Toggle dark/light")
+  (which-key-add-key-based-replacements "C-c T m" "Cycle Modus")
+  (which-key-add-key-based-replacements "C-c T e" "Cycle EF")
+  (which-key-add-key-based-replacements "C-c T o" "Cycle Doric")
+  (which-key-add-key-based-replacements "C-c T f" "Font presets"))
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-themes.el
+(provide 'jd-themes)
+;;; jd-themes.el ends here
+#+end_src
+
+* Minimal Modeline (jd-minimal-modeline.el)
+
+This module provides a custom modeline implementation inspired by Sophie Bosio's design, emphasizing clarity and minimalism while maintaining essential information.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-minimal-modeline.el
+;;; jd-minimal-modeline.el --- Minimal modeline -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Code:
+#+end_src
+
+** Core modeline functions
+
+Functions that generate and format modeline segments.
+
+#+begin_src emacs-lisp :tangle lisp/jd-minimal-modeline.el
+(defun jd-minimal-modeline-status ()
+  "Return buffer status indicator."
+  (let ((ro (and buffer-read-only " RO"))
+        (mod (and (buffer-modified-p) " *")))
+    (format "%s%s" (or ro "") (or mod ""))))
+
+(defun jd-minimal-modeline-position ()
+  "Return cursor position info."
+  (let ((pos (format-mode-line "%l:%c")))
+    (if (region-active-p)
+        (format "%s (Sel: %d)" pos (abs (- (mark) (point))))
+      pos)))
+
+(defun jd-minimal-modeline-vc ()
+  "Return version control info."
+  (when vc-mode
+    (let ((backend (format-mode-line '(vc-mode vc-mode))))
+      (format " %s" (substring backend 5)))))
+
+(defun jd-minimal-modeline-modes ()
+  "Return active major and minor modes."
+  (let ((major (format-mode-line mode-name))
+        (minor (format-mode-line minor-mode-alist)))
+    (format "%s %s" major minor)))
+#+end_src
+
+** Modeline format
+
+The main modeline display configuration with segment ordering and formatting.
+
+#+begin_src emacs-lisp :tangle lisp/jd-minimal-modeline.el
+(defvar jd-minimal-modeline-format
+  '((:eval
+     (let* ((lhs (list
+                  (jd-minimal-modeline-status)
+                  (jd-minimal-modeline-position)
+                  (jd-minimal-modeline-vc)))
+            (rhs (list
+                  (jd-minimal-modeline-modes)))
+            (available-width (- (window-total-width)
+                              (length (format-mode-line lhs))
+                              (length (format-mode-line rhs))
+                              1)))
+       (append lhs
+               (list (make-string available-width ? ))
+               rhs)))
+    (:eval (unless (display-graphic-p) " ")))
+  "Format for the minimal modeline.")
+
+(put 'jd-minimal-modeline-format 'risky-local-variable t)
+#+end_src
+
+** Minor mode definition
+
+Defines the minor mode that enables the minimal modeline.
+
+#+begin_src emacs-lisp :tangle lisp/jd-minimal-modeline.el
+(define-minor-mode jd-minimal-modeline-mode
+  "Toggle minimal modeline mode."
+  :global t
+  :group 'mode-line
+  (if jd-minimal-modeline-mode
+      (setq-default mode-line-format jd-minimal-modeline-format)
+    (setq-default mode-line-format (default-value 'mode-line-format))))
+#+end_src
+
+** Module completion
+
+#+begin_src emacs-lisp :tangle lisp/jd-minimal-modeline.el
+(provide 'jd-minimal-modeline)
+;;; jd-minimal-modeline.el ends here
+#+end_src
+
+* Comprehensive Modeline (jd-modeline.el)
+
+This module provides a comprehensive modeline with evil state indicators, project information, version control status, and enhanced visual styling. It offers more features than the minimal modeline while maintaining clean aesthetics.
+
+** File header and module purpose
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+;;; jd-modeline.el --- Comprehensive modeline -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; A comprehensive modeline configuration with enhanced features.
+;; This provides more information than the minimal modeline while
+;; maintaining a clean, readable design.
+;;
+;; Features:
+;; - Clean, minimal design with increased height
+;; - Evil state indicator
+;; - Project and file information
+;; - Version control status
+;; - Major mode display
+;; - Special indicator for journal buffers
+;; - Position information
+
+;;; Code:
+
+(require 'nerd-icons)
+#+end_src
+
+** Variables and customization
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defgroup jd-modeline nil
+  "Customization group for the comprehensive modeline."
+  :group 'mode-line)
+
+(defcustom jd-modeline-height 30
+  "Height of the modeline in pixels."
+  :type 'integer
+  :group 'jd-modeline)
+
+(defcustom jd-modeline-show-evil-state t
+  "Whether to show evil state in the modeline."
+  :type 'boolean
+  :group 'jd-modeline)
+
+(defcustom jd-modeline-show-journal-indicator t
+  "Whether to show journal indicator in the modeline."
+  :type 'boolean
+  :group 'jd-modeline)
+#+end_src
+
+** Helper functions
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defvar jd-modeline-selected-window nil
+  "Currently selected window.")
+
+(defun jd-modeline-set-selected-window (&rest _)
+  "Set the variable `jd-modeline-selected-window` appropriately."
+  (when (frame-focus-state)
+    (setq jd-modeline-selected-window (frame-selected-window))))
+
+(defun jd-modeline-unset-selected-window ()
+  "Unset the variable `jd-modeline-selected-window`."
+  (setq jd-modeline-selected-window nil))
+
+(add-hook 'window-selection-change-functions #'jd-modeline-set-selected-window)
+(add-hook 'focus-in-hook #'jd-modeline-set-selected-window)
+(add-hook 'focus-out-hook #'jd-modeline-unset-selected-window)
+
+(defun jd-modeline-window-active-p ()
+  "Check if current window is active."
+  (eq (selected-window) jd-modeline-selected-window))
+
+(defun jd-modeline-face (face inactive-face)
+  "Return FACE if window is active, otherwise INACTIVE-FACE."
+  (if (jd-modeline-window-active-p) face inactive-face))
+#+end_src
+
+** Journal indicator
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defun jd-modeline-journal-p ()
+  "Check if current buffer is a journal entry."
+  (and buffer-file-name
+       (string-match-p "journal" buffer-file-name)))
+
+(defun jd-modeline-journal-indicator ()
+  "Return indicator for journal buffers."
+  (when (and jd-modeline-show-journal-indicator
+             (jd-modeline-journal-p))
+    (let* ((active (jd-modeline-window-active-p))
+           (face (if active 'mode-line 'mode-line-inactive))
+           (fg (if active "#a9a1e1" "#757575"))
+           (icon (nerd-icons-faicon "nf-fa-book" 
+                                  :face `(:foreground ,fg :height 0.9)
+                                  :v-adjust 0)))
+      (concat
+       (propertize " " 'face face)
+       (propertize icon)
+       (propertize " Journal " 'face `(:foreground ,fg))))))
+#+end_src
+
+** Evil state display
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defvar jd-modeline-evil-state-alist
+  '((normal . (:icon "nf-fa-arrow_circle_right" :face (:foreground "#98be65")))
+    (insert . (:icon "nf-fa-i_cursor" :face (:foreground "#51afef")))
+    (visual . (:icon "nf-fa-eye" :face (:foreground "#c678dd")))
+    (replace . (:icon "nf-fa-exchange" :face (:foreground "#ff6c6b")))
+    (emacs . (:icon "nf-fa-rocket" :face (:foreground "#2257A0"))))
+  "Alist mapping evil states to icons and faces.")
+
+(defun jd-modeline-evil-state ()
+  "Return evil state indicator."
+  (when (and jd-modeline-show-evil-state
+             (bound-and-true-p evil-mode)
+             (bound-and-true-p evil-state))
+    (let* ((state-props (cdr (assq evil-state jd-modeline-evil-state-alist)))
+           (state-icon (plist-get state-props :icon))
+           (state-face (plist-get state-props :face))
+           (active (jd-modeline-window-active-p))
+           (fg (if active (plist-get state-face :foreground) "#757575")))
+      (when state-icon
+        (concat
+         (propertize " " 'face `(:foreground ,fg))
+         (propertize (nerd-icons-icon-for-mode major-mode
+                                              :face `(:foreground ,fg :height 0.9)
+                                              :v-adjust 0)
+                    'help-echo (symbol-name evil-state))
+         (propertize " "))))))
+#+end_src
+
+** File and project info
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defun jd-modeline-buffer-name ()
+  "Return buffer name with appropriate styling."
+  (let* ((active (jd-modeline-window-active-p))
+         (face (if active 'mode-line-buffer-id 'mode-line-inactive))
+         (name (if (buffer-file-name)
+                  (file-name-nondirectory (buffer-file-name))
+                (buffer-name))))
+    (propertize name 'face face)))
+
+(defun jd-modeline-project-name ()
+  "Return project name if available."
+  (when (and (bound-and-true-p projectile-mode)
+             (projectile-project-p))
+    (let* ((active (jd-modeline-window-active-p))
+           (face (if active 'mode-line 'mode-line-inactive))
+           (project-name (projectile-project-name)))
+      (unless (string= project-name "-")
+        (concat
+         (propertize (nerd-icons-octicon "nf-oct-repo"
+                                        :face face
+                                        :v-adjust 0)
+                    'help-echo "Project")
+         (propertize (format " %s " project-name)
+                    'face face
+                    'help-echo (format "Project: %s" project-name)))))))
+#+end_src
+
+** Version control
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defun jd-modeline-vc-info ()
+  "Return version control information."
+  (when (and vc-mode buffer-file-name)
+    (let* ((backend (vc-backend buffer-file-name))
+           (active (jd-modeline-window-active-p))
+           (face (if active 'mode-line 'mode-line-inactive))
+           (state (when backend (vc-state buffer-file-name backend)))
+           (fg (cond
+                ((memq state '(edited added)) "#98be65")
+                ((eq state 'needs-merge) "#da8548")
+                ((eq state 'needs-update) "#a9a1e1")
+                ((memq state '(removed conflict unregistered)) "#ff6c6b")
+                (t (face-attribute face :foreground nil t))))
+           (icon (nerd-icons-octicon "nf-oct-git_branch"
+                                    :face `(:foreground ,fg :height 0.9)
+                                    :v-adjust 0))
+           (branch (substring-no-properties vc-mode
+                                           (+ (if (eq backend 'Hg) 2 3)
+                                              (length backend)))))
+      (concat
+       (propertize " " 'face face)
+       (propertize icon)
+       (propertize (format " %s " branch)
+                  'face `(:foreground ,fg))))))
+#+end_src
+
+** Position information
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defun jd-modeline-position ()
+  "Return position information."
+  (let* ((active (jd-modeline-window-active-p))
+         (face (if active 'mode-line 'mode-line-inactive))
+         (line (format-mode-line "%l:%c")))
+    (propertize (format " %s " line) 'face face)))
+#+end_src
+
+** Major mode display
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defun jd-modeline-major-mode ()
+  "Return major mode with icon."
+  (let* ((active (jd-modeline-window-active-p))
+         (face (if active 'mode-line 'mode-line-inactive))
+         (icon (nerd-icons-icon-for-mode major-mode
+                                        :face face
+                                        :v-adjust 0))
+         (name (format-mode-line mode-name)))
+    (concat
+     (propertize " " 'face face)
+     (propertize icon)
+     (propertize (format " %s " name) 'face face))))
+#+end_src
+
+** Main modeline definition
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(setq-default mode-line-format
+              '((:eval
+                 (let* ((active (jd-modeline-window-active-p))
+                        (face (if active 'mode-line 'mode-line-inactive)))
+                   (concat
+                    ;; Left segments
+                    (propertize " " 'face face 'display `(raise 0))
+                    (jd-modeline-evil-state)
+                    (jd-modeline-journal-indicator)
+                    (jd-modeline-project-name)
+                    (jd-modeline-buffer-name)
+                    (when (buffer-modified-p)
+                      (propertize " [*] " 'face 
+                                 `(:foreground ,(if active "#ff6c6b" "#757575"))))
+                    (jd-modeline-vc-info)
+                    
+                    ;; Fill space
+                    (propertize " " 'display '(space :align-to (- right 30)))
+                    
+                    ;; Right segments
+                    (jd-modeline-major-mode)
+                    (jd-modeline-position)
+                    (propertize " " 'face face 'display `(raise 0)))))))
+#+end_src
+
+** Make modeline taller
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+(defun jd-modeline-make-taller ()
+  "Make the modeline taller by setting its height."
+  (set-face-attribute 'mode-line nil :height 1.0 :box `(:line-width 6 :color ,(face-attribute 'mode-line :background)))
+  (set-face-attribute 'mode-line-inactive nil :height 1.0 :box `(:line-width 6 :color ,(face-attribute 'mode-line-inactive :background))))
+#+end_src
+
+** Setup function
+
+#+begin_src emacs-lisp :tangle lisp/jd-modeline.el
+;;;###autoload
+(define-minor-mode jd-modeline-mode
+  "Toggle the comprehensive modeline."
+  :global t
+  :lighter ""
+  (if jd-modeline-mode
+      (jd-modeline-make-taller)
+    ;; Reset to default
+    (set-face-attribute 'mode-line nil :height 1.0 :box nil)
+    (set-face-attribute 'mode-line-inactive nil :height 1.0 :box nil)))
+
+(provide 'jd-modeline)
+;;; jd-modeline.el ends here
+#+end_src
+
+* Journaling System (Modular)
+
+This module provides an ADHD-friendly journaling system designed for frictionless capture and review. The system is split into focused modules for maintainability and clarity.
+
+Key principles:
+- Capture first, organize later - Remove barriers to getting thoughts down
+- Temporal over topical - Minimize decision fatigue during capture
+- AI-assisted review - Leverage AI to identify patterns without manual organization
+- Incremental complexity - Start simple, add features as habits solidify
+- Habit-building focus - Support consistent journaling habits
+- Low learning curve - Prioritize discoverability over efficiency
+
+** Journal Core (jd-journal-core.el)
+
+Core functionality including basic journal operations, denote integration, and ADHD-friendly helper functions.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal-core.el
+;;; jd-journal-core.el --- Core journaling functions -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Core journaling functionality for ADHD-friendly note capture.
+;; This module provides the foundation for the journaling system:
+;; - Basic denote and package setup
+;; - Core journal functions (today, yesterday, append)
+;; - Navigation and review functions
+;; - ADHD-friendly helper functions
+
+;;; Code:
+
+(require 'denote)
+(require 'calendar) ;; For date manipulation
+
+;;; ----------------------------------------------------------------------------
+;;; Configuration and setup
+;;; ----------------------------------------------------------------------------
+
+;; Define our journal keyword as a custom variable
+(defcustom jd-journal-keyword "journal"
+  "Default keyword for journal entries."
+  :type 'string
+  :group 'denote)
+
+;; Required packages for the complete journal functionality
+(use-package denote-journal
+  :ensure t
+  :after denote
+  :custom
+  (denote-journal-keyword jd-journal-keyword)
+  (denote-journal-date-title-format "%A, %B %e %Y")
+  :config
+  ;; Directory setup
+  (setq denote-journal-directory (expand-file-name "journal" denote-directory))
+  (unless (file-exists-p denote-journal-directory)
+    (make-directory denote-journal-directory t)))
+
+;; Optional menu interface
+(use-package denote-menu
+  :ensure t
+  :after denote)
+
+;;; ----------------------------------------------------------------------------
+;;; Core journal functions
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal--ensure-newlines ()
+  "Ensure there are proper newlines for content separation.
+This helper function ensures there are at least two newlines at point
+for proper separation between different content blocks."
+  (unless (looking-back "\n\n" (- (point) 2))
+    (if (looking-back "\n" (1- (point)))
+        (insert "\n")
+      (insert "\n\n"))))
+
+(defun jd-journal-get-todays-file ()
+  "Get today's journal file, creating it if it doesn't exist."
+  (denote-journal-path-to-new-or-existing-entry))
+
+(defun jd-journal-today ()
+  "Open or create today's journal entry."
+  (interactive)
+  (denote-journal-new-or-existing-entry))
+
+(defun jd-journal-append-entry ()
+  "Append a timestamped entry to today's journal with minimal friction."
+  (interactive)
+  (find-file (jd-journal-get-todays-file))
+  (goto-char (point-max))
+  (unless (bolp) (insert "\n\n"))
+  ;; Simple format - templates will handle sophisticated formatting
+  (insert (format "## %s - " (format-time-string "%H:%M")))
+  (message "Ready to capture entry..."))
+
+(defun jd-journal-yesterday ()
+  "Open yesterday's journal entry if it exists."
+  (interactive)
+  (let ((yesterday (time-subtract (current-time) (days-to-time 1))))
+    (denote-journal-new-or-existing-entry yesterday)))
+
+(defun jd-journal-date ()
+  "Open a journal entry for a specific date."
+  (interactive)
+  (let ((date (denote-date-prompt)))
+    (denote-journal-new-or-existing-entry date)))
+
+;;; ----------------------------------------------------------------------------
+;;; Navigation and review functions
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-list ()
+  "List all journal entries using denote-dired."
+  (interactive)
+  (let ((files (denote-directory-files 
+                (concat "_" (regexp-quote jd-journal-keyword)))))
+    (if files
+        (dired (cons "Journal Entries" files))
+      (message "No journal entries found"))))
+
+(defun jd-journal-grep ()
+  "Search through journal entries."
+  (interactive)
+  (denote-grep))
+
+(defun jd-journal-menu ()
+  "Show all journal entries in denote-menu."
+  (interactive)
+  (if (fboundp 'denote-menu-list-notes)
+      (progn
+        (denote-menu-list-notes)
+        (denote-menu-filter (concat "_" jd-journal-keyword)))
+    (message "denote-menu is not installed")))
+
+(defun jd-journal-weekly-review ()
+  "Show journal entries from the past week."
+  (interactive)
+  (let* ((today (current-time))
+         (week-ago (time-subtract today (days-to-time 7)))
+         (today-str (format-time-string "%Y%m%d" today))
+         (week-ago-str (format-time-string "%Y%m%d" week-ago))
+         (regexp (format "%s.*_journal\\|%s.*_journal"
+                        week-ago-str today-str)))
+    (if (fboundp 'denote-menu-list-notes)
+        (progn
+          (denote-menu-list-notes)
+          (denote-menu-filter regexp))
+      (let ((files (denote-directory-files regexp)))
+        (if files
+            (dired (cons "Journal Weekly Review" files))
+          (message "No journal entries found for the past week"))))))
+
+;;; ----------------------------------------------------------------------------
+;;; ADHD-friendly helper functions
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-quick-capture ()
+  "Fastest way to capture a thought with minimal context switching.
+Opens today's journal, adds timestamp, and positions cursor for immediate typing."
+  (interactive)
+  (let ((current-window (selected-window)))
+    (jd-journal-append-entry)
+    (evil-insert-state)))
+
+(defun jd-journal-capture-last-thought ()
+  "Capture the last thing you copied as a journal entry.
+Useful for quickly saving ideas from other applications."
+  (interactive)
+  (jd-journal-append-entry)
+  (yank)
+  (newline)
+  (message "Captured clipboard content to journal"))
+
+(defun jd-journal-show-status ()
+  "Show a brief status of your journaling habit."
+  (interactive)
+  (let* ((today (current-time))
+         (week-ago (time-subtract today (days-to-time 7)))
+         (month-ago (time-subtract today (days-to-time 30)))
+         (today-str (format-time-string "%Y-%m-%d" today))
+         (week-ago-str (format-time-string "%Y-%m-%d" week-ago))
+         (month-ago-str (format-time-string "%Y-%m-%d" month-ago))
+         (files (denote-directory-files
+                 (concat "_" (regexp-quote jd-journal-keyword))))
+         (week-count 0)
+         (month-count 0)
+         (buffer (get-buffer-create "*Journal Status*")))
+    (dolist (file files)
+      (let ((file-date (format-time-string "%Y-%m-%d" 
+                        (date-to-time (denote-extract-id-from-file-name file)))))
+        (when (and (string>= file-date week-ago-str)
+                   (string<= file-date today-str))
+          (setq week-count (1+ week-count)))
+        (when (and (string>= file-date month-ago-str)
+                   (string<= file-date today-str))
+          (setq month-count (1+ month-count)))))
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert "# Journal Status\n\n")
+      (insert (format "- Past 7 days: %d entries\n" week-count))
+      (insert (format "- Past 30 days: %d entries\n\n" month-count))
+      ;; Calculate consistency
+      (let ((week-percent (* 100.0 (/ week-count 7.0))))
+        (insert (format "Weekly consistency: %.1f%%\n\n" week-percent))
+        (insert "Current streak: ")
+        ;; Calculate current streak
+        (let ((streak 0)
+              (current-date today))
+          (while (let* ((date-str (format-time-string "%Y%m%d" current-date))
+                        (day-pattern (concat date-str "T.*_" (regexp-quote jd-journal-keyword)))
+                        (day-files (denote-directory-files day-pattern)))
+                   (if day-files
+                       (progn (setq streak (1+ streak)) t)
+                     nil))
+            (setq current-date (time-subtract current-date (days-to-time 1))))
+          (insert (format "%d days" streak))))
+      (display-buffer buffer))))
+
+;;; ----------------------------------------------------------------------------
+;;; Initialization
+;;; ----------------------------------------------------------------------------
+
+;; Set up denote-journal (once it's installed)
+(with-eval-after-load 'denote-journal
+  (setq denote-journal-title-format "Journal for %Y-%m-%d")
+  (setq denote-journal-keywords (list jd-journal-keyword)))
+
+(provide 'jd-journal-core)
+;;; jd-journal-core.el ends here
+#+end_src
+
+** Journal Templates (jd-journal-templates.el)
+
+Sophisticated template system that adapts to different file formats and provides structured entry types.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal-templates.el
+;;; jd-journal-templates.el --- Journal template system -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Template system for ADHD-friendly journaling.
+;; Provides structured templates that adapt to different file formats
+;; (Org, Markdown, plain text) and support various journaling needs.
+
+;;; Code:
+
+(require 'jd-journal-core)
+
+;;; ----------------------------------------------------------------------------
+;;; Tempel integration and template system
+;;; ----------------------------------------------------------------------------
+
+;; Tempel for structured template insertion
+(use-package tempel
+  :ensure t
+  :bind (("M-+" . tempel-complete)
+         ("M-*" . tempel-insert))
+  :init
+  ;; Setup completion at point for journal buffers
+  (defun jd-journal-setup-capf ()
+    "Set up tempel completion for journal buffers."
+    (setq-local completion-at-point-functions
+                (cons #'tempel-expand
+                      completion-at-point-functions)))
+  
+  ;; Add to text-mode (which journal files inherit from)
+  (add-hook 'text-mode-hook 'jd-journal-setup-capf)
+  (add-hook 'org-mode-hook 'jd-journal-setup-capf)
+  (add-hook 'markdown-mode-hook 'jd-journal-setup-capf)
+  
+  :config
+  ;; Use abbrev expansion for quick template access
+  (add-hook 'text-mode-hook #'tempel-abbrev-mode)
+  
+  ;; Initialize tempel-template-sources if not already defined
+  (unless (boundp 'tempel-template-sources)
+    (setq tempel-template-sources nil)))
+
+;;; ----------------------------------------------------------------------------
+;;; Format-aware template functions
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal--get-format-syntax ()
+  "Return formatting syntax based on current buffer's major mode."
+  (cond
+   ((eq major-mode 'org-mode)
+    '(:h1 "* " :h2 "** " :h3 "*** " :bold "*" :bold-end "*"
+      :table-row "| " :table-sep " | " :table-end " |"))
+   ((or (eq major-mode 'markdown-mode) (eq major-mode 'gfm-mode))
+    '(:h1 "# " :h2 "## " :h3 "### " :bold "**" :bold-end "**"
+      :table-row "| " :table-sep " | " :table-end " |"))
+   (t ; text-mode or others
+    '(:h1 "" :h2 "" :h3 "" :bold "" :bold-end ""
+      :table-row "" :table-sep ": " :table-end ""))))
+
+(defun jd-journal--format-template (template-name)
+  "Return formatted template based on current buffer's major mode."
+  (let ((fmt (jd-journal--get-format-syntax)))
+    (pcase template-name
+      ('morning-startup
+       `(,(plist-get fmt :h1) "Morning Startup (" (format-time-string "%H:%M") ")" n
+         "Energy: " (p "1-10: " energy) "/10" n
+         "Mood: " (p "feeling: " mood) n
+         n
+         ,(plist-get fmt :h2) "Focus areas today" n
+         "- " (p "priority 1: " p1) n
+         "- " (p "priority 2: " p2) n
+         "- " (p "priority 3: " p3) n
+         n
+         ,(plist-get fmt :h2) "Intentions" n
+         (p "what mindset/approach for today: " intention) n))
+      
+      ('evening-winddown
+       `(,(plist-get fmt :h1) "Evening Winddown (" (format-time-string "%H:%M") ")" n
+         "Energy: " (p "1-10: " energy) "/10" n
+         "Mood: " (p "feeling: " mood) n
+         n
+         ,(plist-get fmt :h2) "Today's wins" n
+         "- " (p "accomplishment 1: " win1) n
+         "- " (p "accomplishment 2: " win2) n
+         n
+         ,(plist-get fmt :h2) "Challenges/blocks" n
+         "- " (p "what was difficult: " challenge) n
+         n
+         ,(plist-get fmt :h2) "Tomorrow's focus" n
+         "- " (p "main priority: " tomorrow) n
+         n
+         ,(plist-get fmt :h2) "Reflection" n
+         (p "what did I learn about myself today: " reflection)))
+      
+      ('quick-thought
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - " (p "topic: " topic) n
+         (p "thought: ")))
+      
+      ('meeting-notes
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Meeting: " (p "meeting name: " meeting) n
+         "Attendees: " (p "who was there: " attendees) n
+         n
+         ,(plist-get fmt :h3) "Key points" n
+         "- " (p "main point 1: " point1) n
+         "- " (p "main point 2: " point2) n
+         n
+         ,(plist-get fmt :h3) "Action items" n
+         "- " (p "my action: " action) n
+         n
+         ,(plist-get fmt :h3) "Reflection" n
+         (p "how did it go: " reflection)))
+      
+      ('energy-check
+       (if (eq major-mode 'org-mode)
+         ;; Org-mode table
+         `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Energy Check" n
+           "| Energy | " (p "1-10: " energy) "/10 |" n
+           "| Focus  | " (p "1-10: " focus) "/10 |" n
+           "| Mood   | " (p "feeling: " mood) " |" n
+           n
+           "What's affecting me: " (p "internal/external factors: " factors))
+         ;; Markdown/text format
+         `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Energy Check" n
+           "Energy: " (p "1-10: " energy) "/10" n
+           "Focus: " (p "1-10: " focus) "/10" n
+           "Mood: " (p "feeling: " mood) n
+           n
+           "What's affecting me: " (p "internal/external factors: " factors))))
+      
+      ('breakthrough
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - " 
+         ,(plist-get fmt :bold) "Breakthrough!" ,(plist-get fmt :bold-end) 
+         ,(if (eq major-mode 'text-mode) " [!]" " 🎯") n
+         ,(plist-get fmt :h3) "What I figured out" n
+         (p "the insight: " insight) n
+         n
+         ,(plist-get fmt :h3) "Why this matters" n
+         (p "significance: " significance) n
+         n
+         ,(plist-get fmt :h3) "Next steps" n
+         (p "what to do with this: " next)))
+      
+      ('weekly-review
+       `(,(plist-get fmt :h1) "Weekly Review - Week of " (format-time-string "%B %d, %Y") n
+         n
+         ,(plist-get fmt :h2) "Overall Energy & Mood Patterns" n
+         (p "what patterns did I notice: " patterns) n
+         n
+         ,(plist-get fmt :h2) "Key Accomplishments" n
+         "- " (p "achievement 1: " acc1) n
+         "- " (p "achievement 2: " acc2) n
+         "- " (p "achievement 3: " acc3) n
+         n
+         ,(plist-get fmt :h2) "Challenges & Learning" n
+         (p "what was difficult and what I learned: " challenges) n
+         n
+         ,(plist-get fmt :h2) "Next Week's Focus" n
+         "- " (p "priority 1: " next1) n
+         "- " (p "priority 2: " next2) n
+         n
+         ,(plist-get fmt :h2) "System Improvements" n
+         (p "what could work better: " improvements)))
+      
+      ('daily-standup
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Daily Standup" n
+         ,(plist-get fmt :h3) "What I did yesterday" n
+         "- " (p "completed task 1: " yesterday1) n
+         "- " (p "completed task 2: " yesterday2) n
+         n
+         ,(plist-get fmt :h3) "What I'm doing today" n
+         "- " (p "today's priority 1: " today1) n
+         "- " (p "today's priority 2: " today2) n
+         n
+         ,(plist-get fmt :h3) "Blockers" n
+         (p "anything blocking progress: " blockers "None")))
+      
+      ('mood-tracker
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Mood Check" n
+         "Mood: " (p "1-10: " mood) "/10" n
+         "Anxiety: " (p "1-10: " anxiety) "/10" n
+         "Energy: " (p "1-10: " energy) "/10" n
+         "Focus: " (p "1-10: " focus) "/10" n
+         n
+         "What's influencing this: " (p "factors: " influence) n
+         "What might help: " (p "strategies: " help)))
+      
+      ('project-update
+       `(,(plist-get fmt :h2) (format-time-string "%H:%M") " - Project: " (p "project name: " project) n
+         "Status: " (p "status: " status) n
+         "Progress: " (p "percentage: " progress "0") "%" n
+         n
+         ,(plist-get fmt :h3) "Recent progress" n
+         "- " (p "accomplishment: " progress1) n
+         n
+         ,(plist-get fmt :h3) "Next steps" n
+         "- " (p "next action: " next1) n
+         n
+         ,(plist-get fmt :h3) "Blockers/Issues" n
+         (p "any problems: " issues "None"))))))
+
+;;; ----------------------------------------------------------------------------
+;;; Template insertion functions
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-insert-morning-startup ()
+  "Insert morning startup template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'morning-startup))))
+
+(defun jd-journal-insert-evening-winddown ()
+  "Insert evening winddown template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'evening-winddown))))
+
+(defun jd-journal-insert-quick-thought ()
+  "Insert quick thought template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'quick-thought))))
+
+(defun jd-journal-insert-meeting-notes ()
+  "Insert meeting notes template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'meeting-notes))))
+
+(defun jd-journal-insert-energy-check ()
+  "Insert energy check template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'energy-check))))
+
+(defun jd-journal-insert-breakthrough ()
+  "Insert breakthrough template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'breakthrough))))
+
+(defun jd-journal-insert-weekly-review ()
+  "Insert weekly review template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'weekly-review))))
+
+(defun jd-journal-insert-daily-standup ()
+  "Insert daily standup template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'daily-standup))))
+
+(defun jd-journal-insert-mood-tracker ()
+  "Insert mood tracker template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'mood-tracker))))
+
+(defun jd-journal-insert-project-update ()
+  "Insert project update template at point."
+  (interactive)
+  (tempel-insert (eval (jd-journal--format-template 'project-update))))
+
+(defun jd-journal-template-menu ()
+  "Show a menu to select and insert journal templates."
+  (interactive)
+  (let ((templates '(("Morning Startup" . jd-journal-insert-morning-startup)
+                     ("Evening Winddown" . jd-journal-insert-evening-winddown)
+                     ("Quick Thought" . jd-journal-insert-quick-thought)
+                     ("Meeting Notes" . jd-journal-insert-meeting-notes)
+                     ("Energy Check" . jd-journal-insert-energy-check)
+                     ("Breakthrough" . jd-journal-insert-breakthrough)
+                     ("Weekly Review" . jd-journal-insert-weekly-review)
+                     ("Daily Standup" . jd-journal-insert-daily-standup)
+                     ("Mood Tracker" . jd-journal-insert-mood-tracker)
+                     ("Project Update" . jd-journal-insert-project-update))))
+    (let ((choice (completing-read "Insert template: " templates nil t)))
+      (when choice
+        (funcall (cdr (assoc choice templates)))))))
+
+;;; ----------------------------------------------------------------------------
+;;; Enhanced journal functions with template support
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-start-day ()
+  "Open today's journal and optionally insert morning startup template."
+  (interactive)
+  (jd-journal-today)
+  (goto-char (point-max))
+  (when (y-or-n-p "Insert morning startup template? ")
+    (unless (bolp) (insert "\n\n"))
+    (jd-journal-insert-morning-startup)))
+
+(defun jd-journal-end-day ()
+  "Add evening winddown template to today's journal."
+  (interactive)
+  (find-file (jd-journal-get-todays-file))
+  (goto-char (point-max))
+  (unless (bolp) (insert "\n\n"))
+  (jd-journal-insert-evening-winddown))
+
+;;; ----------------------------------------------------------------------------
+;;; Template collection setup
+;;; ----------------------------------------------------------------------------
+
+;; Template collection - now uses dynamic formatting  
+(with-eval-after-load 'tempel
+  (setq jd-journal-templates
+        '((morning-startup . (jd-journal--format-template 'morning-startup))
+          (evening-winddown . (jd-journal--format-template 'evening-winddown))
+          (quick-thought . (jd-journal--format-template 'quick-thought))
+          (meeting-notes . (jd-journal--format-template 'meeting-notes))
+          (energy-check . (jd-journal--format-template 'energy-check))
+          (breakthrough . (jd-journal--format-template 'breakthrough))
+          (weekly-review . (jd-journal--format-template 'weekly-review))
+          (daily-standup . (jd-journal--format-template 'daily-standup))
+          (mood-tracker . (jd-journal--format-template 'mood-tracker))
+          (project-update . (jd-journal--format-template 'project-update))))
+
+  ;; Add templates to tempel's collection
+  (add-to-list 'tempel-template-sources 'jd-journal-templates))
+
+(provide 'jd-journal-templates)
+;;; jd-journal-templates.el ends here
+#+end_src
+
+** Journal AI Integration (jd-journal-ai.el)
+
+AI-powered analysis and insights for journal entries using multiple backends.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal-ai.el
+;;; jd-journal-ai.el --- AI integration for journaling -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; AI integration functions for journal analysis and insights.
+;; Supports multiple AI backends including gptel and chatgpt-shell.
+;; Provides intelligent analysis of journal entries to identify patterns,
+;; suggest improvements, and offer reflection prompts.
+
+;;; Code:
+
+(require 'jd-journal-core)
+
+;;; ----------------------------------------------------------------------------
+;;; AI analysis functions
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-copy-for-ai ()
+  "Copy today's journal content for AI analysis."
+  (interactive)
+  (let ((journal (jd-journal-get-todays-file)))
+    (find-file journal)
+    (mark-whole-buffer)
+    (kill-ring-save (point-min) (point-max))
+    (message "Journal copied to clipboard for AI analysis")))
+
+(defun jd-journal-insert-ai-insights ()
+  "Insert AI insights at end of journal."
+  (interactive)
+  (let ((journal (jd-journal-get-todays-file)))
+    (find-file journal)
+    (goto-char (point-max))
+    (jd-journal--ensure-newlines)
+    (insert "# AI Insights\n\n")
+    (yank)
+    (message "AI insights inserted")))
+
+;;; ----------------------------------------------------------------------------
+;;; gptel integration
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-analyze-with-gptel ()
+  "Analyze today's journal with gptel."
+  (interactive)
+  (let ((journal (jd-journal-get-todays-file)))
+    ;; Open the journal and copy its contents
+    (find-file journal)
+    (let ((journal-content (buffer-substring-no-properties (point-min) (point-max)))
+          (analysis-buffer-name "*Journal Analysis*"))
+      
+      ;; Create a new gptel chat buffer
+      (let ((chat-buffer (gptel analysis-buffer-name)))
+        (with-current-buffer chat-buffer
+          ;; Insert our prompt followed by the journal content
+          (goto-char (point-max))
+          (insert "Please analyze this journal entry and provide:
+1. Key insights about my day
+2. Patterns you notice in my thoughts or behaviors
+3. Suggestions that might be helpful for tomorrow
+4. Any questions that might prompt useful reflection
+
+Here's my journal entry:
+
+" journal-content)
+          ;; Send the message
+          (gptel-send))
+        
+        ;; Make sure the buffer is displayed in a window
+        (when-let ((buffer-window (get-buffer-window analysis-buffer-name)))
+          (select-window buffer-window))
+        
+        ;; If the buffer isn't displayed yet, display it
+        (unless (get-buffer-window analysis-buffer-name)
+          (display-buffer chat-buffer)
+          (message "Analysis in progress... Results will appear in the Journal Analysis buffer."))))))
+
+(defun jd-journal-analyze-current-buffer-with-gptel ()
+  "Analyze the current journal buffer with gptel.
+If using GitHub Copilot and it hangs, try switching to OpenAI backend first with C-c a o."
+  (interactive)
+  (if (and buffer-file-name
+           (string-match-p (concat "_" (regexp-quote jd-journal-keyword)) buffer-file-name))
+      (progn
+        ;; Check if we need to reset backend to OpenAI
+        (when (and (boundp 'gptel-backend) 
+                   (stringp gptel-backend)
+                   (string= gptel-backend "Copilot"))
+          (message "Warning: Using Copilot backend. If analysis hangs, try C-c a o to switch to OpenAI."))
+        
+        (let ((journal-content (buffer-substring-no-properties (point-min) (point-max)))
+              (analysis-buffer-name "*Journal Analysis*"))
+          
+          ;; Create a new gptel chat buffer and ensure it's displayed
+          (let ((chat-buffer (gptel analysis-buffer-name)))
+            (with-current-buffer chat-buffer
+              ;; Insert our prompt followed by the journal content
+              (goto-char (point-max))
+              (insert "Please analyze this journal entry and provide:
+1. Key insights about my day
+2. Patterns you notice in my thoughts or behaviors
+3. Suggestions that might be helpful for tomorrow
+4. Any questions that might prompt useful reflection
+
+Here's my journal entry:
+
+" journal-content)
+              ;; Send the message
+              (gptel-send))
+            
+            ;; Make sure the buffer is displayed in a window
+            (when-let ((buffer-window (get-buffer-window analysis-buffer-name)))
+              (select-window buffer-window))
+            
+            ;; If the buffer isn't displayed yet, display it
+            (unless (get-buffer-window analysis-buffer-name)
+              (display-buffer chat-buffer)
+              (message "Analysis in progress... Results will appear in the Journal Analysis buffer.")))))
+    (message "This doesn't appear to be a journal entry. Use M-x jd-journal-today first.")))
+
+;;; ----------------------------------------------------------------------------
+;;; chatgpt-shell integration
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-analyze-with-chatgpt-shell ()
+  "Analyze today's journal with chatgpt-shell."
+  (interactive)
+  (let ((journal (jd-journal-get-todays-file)))
+    (find-file journal)
+    (mark-whole-buffer)
+    (kill-ring-save (point-min) (point-max))
+    ;; Start or switch to ChatGPT shell
+    (chatgpt-shell)
+    (goto-char (point-max))
+    (insert "Please analyze this journal entry and provide:
+1. Key insights about my day
+2. Patterns you notice in my thoughts or behaviors
+3. Suggestions that might be helpful for tomorrow
+4. Any questions that might prompt useful reflection
+
+My journal entry:
+")
+    (yank)
+    (chatgpt-shell-send-to-buffer)))
+
+;;; ----------------------------------------------------------------------------
+;;; Weekly review and pattern analysis
+;;; ----------------------------------------------------------------------------
+
+(defun jd-journal-weekly-ai-review ()
+  "Prepare a weekly review for AI analysis."
+  (interactive)
+  (let* ((today (current-time))
+         (week-ago (time-subtract today (days-to-time 7)))
+         (today-str (format-time-string "%Y-%m-%d" today))
+         (week-ago-str (format-time-string "%Y-%m-%d" week-ago))
+         (buffer (get-buffer-create "*Weekly Journal Review*"))
+         (files (denote-directory-files
+                 (concat "_" jd-journal-keyword))))
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert (format "# Weekly Journal Review: %s to %s\n\n"
+                      week-ago-str today-str))
+      ;; For each journal file in the past week
+      (dolist (file files)
+        (let ((file-date (format-time-string "%Y-%m-%d" 
+                          (date-to-time (denote-extract-id-from-file-name file)))))
+          (when (and (string>= file-date week-ago-str)
+                     (string<= file-date today-str))
+            (insert (format "## %s\n\n" file-date))
+            (insert-file-contents file)
+            (goto-char (point-max))
+            (insert "\n\n"))))
+      (goto-char (point-min))
+      (display-buffer buffer))))
+
+(defun jd-journal-weekly-ai-patterns ()
+  "Analyze weekly journal entries for patterns with AI."
+  (interactive)
+  (jd-journal-weekly-ai-review)
+  (with-current-buffer "*Weekly Journal Review*"
+    (gptel-send (point-min) (point-max)
+               "Please analyze these journal entries from the past week and provide:
+1. Common themes or patterns in thoughts, emotions, or activities
+2. Areas where I seem to be making progress
+3. Potential challenges or blocks that appear repeatedly
+4. Suggestions for the coming week based on these observations
+5. A brief summary of the overall mood and energy trends")))
+
+(provide 'jd-journal-ai)
+;;; jd-journal-ai.el ends here
+#+end_src
+
+** Journal Keybindings (jd-journal-keybindings.el)
+
+Comprehensive keybinding system with which-key integration for all journal functions.
+
+#+begin_src emacs-lisp :tangle lisp/jd-journal-keybindings.el
+;;; jd-journal-keybindings.el --- Keybindings for journaling system -*- lexical-binding: t -*-
+
+;; Copyright (c) 2025 Julian Dorsey
+
+;;; Commentary:
+;; Comprehensive keybinding system for the ADHD-friendly journaling workflow.
+;; Provides intuitive access to all journal functions through the C-c j prefix,
+;; with complete which-key integration for discoverability.
+
+;;; Code:
+
+(require 'jd-journal-core)
+(require 'jd-journal-templates)
+(require 'jd-journal-ai)
+
+;;; ----------------------------------------------------------------------------
+;;; Main journal keymap
+;;; ----------------------------------------------------------------------------
+
+;; Define a keymap for journal functions
+(defvar jd-journal-map (make-sparse-keymap)
+  "Keymap for journal commands.")
+
+;; Journal-specific keybindings
+(define-key global-map (kbd "C-c j") jd-journal-map)
+
+;; Core journal functions
+(define-key jd-journal-map (kbd "t") #'jd-journal-today)
+(define-key jd-journal-map (kbd "a") #'jd-journal-append-entry)
+(define-key jd-journal-map (kbd "y") #'jd-journal-yesterday)
+(define-key jd-journal-map (kbd "d") #'jd-journal-date)
+(define-key jd-journal-map (kbd "l") #'jd-journal-list)
+(define-key jd-journal-map (kbd "g") #'jd-journal-grep)
+(define-key jd-journal-map (kbd "m") #'jd-journal-menu)
+(define-key jd-journal-map (kbd "w") #'jd-journal-weekly-review)
+
+;; ADHD-friendly quick capture
+(define-key jd-journal-map (kbd "q") #'jd-journal-quick-capture)
+(define-key jd-journal-map (kbd "p") #'jd-journal-capture-last-thought)
+(define-key jd-journal-map (kbd "s") #'jd-journal-show-status)
+
+;; AI integration
+(define-key jd-journal-map (kbd "c") #'jd-journal-copy-for-ai)
+(define-key jd-journal-map (kbd "i") #'jd-journal-insert-ai-insights)
+(define-key jd-journal-map (kbd "r") #'jd-journal-weekly-ai-review)
+(define-key jd-journal-map (kbd "A") #'jd-journal-analyze-with-gptel)
+(define-key jd-journal-map (kbd ".") #'jd-journal-analyze-current-buffer-with-gptel)
+(define-key jd-journal-map (kbd "C") #'jd-journal-analyze-with-chatgpt-shell)
+(define-key jd-journal-map (kbd "W") #'jd-journal-weekly-ai-patterns)
+
+;; Template insertion
+(define-key jd-journal-map (kbd "T") #'jd-journal-template-menu)
+(define-key jd-journal-map (kbd "M") #'jd-journal-insert-morning-startup)
+(define-key jd-journal-map (kbd "E") #'jd-journal-insert-evening-winddown)
+(define-key jd-journal-map (kbd "Q") #'jd-journal-insert-quick-thought)
+(define-key jd-journal-map (kbd "N") #'jd-journal-insert-meeting-notes)
+(define-key jd-journal-map (kbd "e") #'jd-journal-insert-energy-check)
+(define-key jd-journal-map (kbd "B") #'jd-journal-insert-breakthrough)
+(define-key jd-journal-map (kbd "R") #'jd-journal-insert-weekly-review)
+(define-key jd-journal-map (kbd "U") #'jd-journal-insert-daily-standup)
+(define-key jd-journal-map (kbd "o") #'jd-journal-insert-mood-tracker)
+(define-key jd-journal-map (kbd "P") #'jd-journal-insert-project-update)
+
+;; Convenient workflow bindings
+(define-key jd-journal-map (kbd "S") #'jd-journal-start-day)
+(define-key jd-journal-map (kbd "F") #'jd-journal-end-day)
+
+;;; ----------------------------------------------------------------------------
+;;; Global convenience bindings
+;;; ----------------------------------------------------------------------------
+
+;; Add a global binding for the most common function
+(global-set-key (kbd "C-c C-j") #'jd-journal-quick-capture)
+
+;;; ----------------------------------------------------------------------------
+;;; Tempel key bindings
+;;; ----------------------------------------------------------------------------
+
+;; Bind important templates to keys using tempel-key (after keymap is set up)
+(with-eval-after-load 'tempel
+  (tempel-key "C-c j m" "morning-startup")
+  (tempel-key "C-c j e" "evening-winddown")
+  (tempel-key "C-c j q" "quick-thought")
+  (tempel-key "C-c j n" "meeting-notes"))
+
+;;; ----------------------------------------------------------------------------
+;;; which-key integration
+;;; ----------------------------------------------------------------------------
+
+;; Add which-key descriptions for the journal keymap
+(with-eval-after-load 'which-key
+  (which-key-add-key-based-replacements "C-c j" "Journal")
+  
+  ;; Core functions
+  (which-key-add-key-based-replacements 
+    "C-c j t" "Today's journal"
+    "C-c j a" "Append entry"
+    "C-c j y" "Yesterday's journal"
+    "C-c j d" "Journal by date"
+    "C-c j l" "List journals"
+    "C-c j g" "Search journals"
+    "C-c j m" "Journal menu"
+    "C-c j w" "Weekly review")
+  
+  ;; ADHD-friendly capture
+  (which-key-add-key-based-replacements
+    "C-c j q" "Quick capture"
+    "C-c j p" "Paste as entry"
+    "C-c j s" "Journal status")
+  
+  ;; AI integration
+  (which-key-add-key-based-replacements
+    "C-c j c" "Copy for AI"
+    "C-c j i" "Insert AI insights"
+    "C-c j r" "AI weekly review"
+    "C-c j A" "Analyze with gptel"
+    "C-c j ." "Analyze current buffer"
+    "C-c j C" "Analyze with ChatGPT"
+    "C-c j W" "Weekly patterns analysis")
+  
+  ;; Template keybindings
+  (which-key-add-key-based-replacements
+    "C-c j T" "Template menu"
+    "C-c j M" "Morning startup"
+    "C-c j E" "Evening winddown"
+    "C-c j Q" "Quick thought"
+    "C-c j N" "Meeting notes"
+    "C-c j e" "Energy check"
+    "C-c j B" "Breakthrough"
+    "C-c j R" "Weekly review template"
+    "C-c j U" "Daily standup"
+    "C-c j o" "Mood tracker"
+    "C-c j P" "Project update")
+  
+  ;; Workflow bindings
+  (which-key-add-key-based-replacements
+    "C-c j S" "Start day (with template)"
+    "C-c j F" "End day (with template)"))
+
+(provide 'jd-journal-keybindings)
+;;; jd-journal-keybindings.el ends here
+#+end_src
+
+** Session State Tracking
+    '(:h1 "" :h2 "" :h3 "" :bold "" :bold-end ""
+      :table-row "" :table-sep ": " :table-end ""))))
+
+#+begin_comment
+---
+## Session 2025-07-30 15:30 - 1
+
+**Mode:** literate-config-translation
+**Goal:** Translate Julian's modular Emacs configuration into literate format while preserving exact code
+**Files Examined:** init.el, jd-base.el, jd-ui.el, plus structure assessment
+**Progress:**
+- Created literate configuration template with full scaffolding
+- Translated init.el completely (preserves exact structure and comments)
+- Translated jd-base.el completely (core settings and package management)
+- Translated jd-ui.el completely (visual interface, theme, modeline)
+- Added comprehensive org structure with proper tangling setup
+- Scaffolded all remaining sections for future translation
+
+**Status:** Phase 1 complete - foundation modules translated
+**Next:** Phase 2 - Evil mode and navigation modules (jd-edit.el, jd-evil-extensions.el, jd-evil-keypad.el, jd-navigation.el)
+**Questions/Blockers:** None - ready for next phase
+#+end_comment

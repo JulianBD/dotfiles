@@ -1,0 +1,36 @@
+{{- $hostname := promptStringOnce . "hostname" "Hostname" -}}
+{{- $machineType := promptChoiceOnce . "machine_type" "Machine type" (list "work" "dev" "casual") -}}
+
+{{/* Aerospace: monitor assignments */}}
+{{- $primaryMonitor := promptStringOnce . "primary_monitor" "Aerospace primary monitor number (e.g., 1)" -}}
+{{- $secondaryMonitor := promptStringOnce . "secondary_monitor" "Aerospace secondary monitor number (e.g., 2)" -}}
+{{- $builtinDisplayPattern := promptStringOnce . "builtin_display_pattern" "Built-in display regex for aerospace (e.g., ^built-in retina display$)" -}}
+{{- $outerTopBuiltin := promptStringOnce . "outer_top_builtin" "Aerospace outer.top gap for built-in display (e.g., 14)" -}}
+{{- $outerTopDefault := promptStringOnce . "outer_top_default" "Aerospace outer.top gap default (e.g., 14)" -}}
+
+{{/* Tuna: carbon key codes */}}
+{{- $tunaActivateKeyCode := promptStringOnce . "tuna_activate_keycode" "Tuna activate carbonKeyCode (e.g., 49)" -}}
+{{- $tunaActivateModifiers := promptStringOnce . "tuna_activate_modifiers" "Tuna activate carbonModifiers (e.g., 256)" -}}
+{{- $tunaLeaderKeyCode := promptStringOnce . "tuna_leader_keycode" "Tuna leader carbonKeyCode (e.g., 49)" -}}
+{{- $tunaLeaderModifiers := promptStringOnce . "tuna_leader_modifiers" "Tuna leader carbonModifiers (e.g., 4096)" -}}
+
+{{/* Work environment */}}
+{{- $certPath := promptStringOnce . "cert_path" "CA bundle path (e.g., ~/certs/zscaler-bundle.pem, or blank)" -}}
+
+{{/* Secrets — stored in chezmoi.toml (gitignored), never committed */}}
+{{- $jiraApiToken := promptStringOnce . "jira_api_token" "JIRA API token (leave blank if none)" -}}
+
+[data]
+  hostname = {{ $hostname | quote }}
+  machine_type = {{ $machineType | quote }}
+  primary_monitor = {{ $primaryMonitor | quote }}
+  secondary_monitor = {{ $secondaryMonitor | quote }}
+  builtin_display_pattern = {{ $builtinDisplayPattern | quote }}
+  outer_top_builtin = {{ $outerTopBuiltin | quote }}
+  outer_top_default = {{ $outerTopDefault | quote }}
+  tuna_activate_keycode = {{ $tunaActivateKeyCode | quote }}
+  tuna_activate_modifiers = {{ $tunaActivateModifiers | quote }}
+  tuna_leader_keycode = {{ $tunaLeaderKeyCode | quote }}
+  tuna_leader_modifiers = {{ $tunaLeaderModifiers | quote }}
+  cert_path = {{ $certPath | quote }}
+  jira_api_token = {{ $jiraApiToken | quote }}

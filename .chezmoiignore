@@ -1,0 +1,58 @@
+# Repo files — not dotfiles
+README.md
+LICENSE
+
+# Emacs generated/state (also covered by .emacs.d/.gitignore)
+.emacs.d/elpa
+.emacs.d/eln-cache
+.emacs.d/auto-save-list
+.emacs.d/backups
+.emacs.d/etc
+.emacs.d/transient
+.emacs.d/package-installed
+.emacs.d/nerd-fonts-checked
+.emacs.d/history
+.emacs.d/.chatgpt-shell.el
+
+# Fish: fisher-managed files (installed by run_onchange script)
+.config/fish/functions/_pure_*
+.config/fish/functions/__bass.py
+.config/fish/functions/bass.fish
+.config/fish/functions/fish_greeting.fish
+.config/fish/functions/fish_mode_prompt.fish
+.config/fish/functions/fish_prompt.fish
+.config/fish/functions/fish_title.fish
+.config/fish/conf.d/_pure_init.fish
+.config/fish/conf.d/pure.fish
+
+# Fish: machine-local state
+.config/fish/fish_variables
+.config/fish/completions
+
+# Fish: tool-generated conf.d
+.config/fish/conf.d/fish_frozen_key_bindings.fish
+.config/fish/conf.d/fish_frozen_theme.fish
+.config/fish/conf.d/uv.env.fish
+
+# Sketchybar: generated from ghostty theme (run_after script regenerates)
+.config/sketchybar/colors.sh
+.config/sketchybar/colors.lua
+
+# Theme pipeline: runtime state (managed by elvish modules)
+.config/dotfiles/themes.json
+.config/dotfiles/current-theme
+
+# Aerospace: editor state
+.config/aerospace/.opencode
+
+# Tuna: app state
+Library/Application Support/Tuna/ClipboardHistory
+Library/Application Support/Tuna/ExtensionStore
+Library/Application Support/Tuna/FavoritesCache.json
+Library/Application Support/Tuna/Mnemonics.plist
+Library/Application Support/Tuna/PlugIns
+Library/Application Support/Tuna/PlugInsDev
+Library/Application Support/Tuna/ProxyHistory.plist
+
+# OS junk
+.DS_Store

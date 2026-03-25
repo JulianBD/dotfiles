@@ -1,0 +1,56 @@
+if status is-interactive
+    # Commands to run in interactive sessions can go here
+end
+
+# aws-kubectl interactive params
+set -gx IGNORE_AUTH_TEST true
+set -gx IGNORE_HOST_CONF true
+alias eks-control-worker "~/working/tio-hm-ce-eks-control-worker/start-console.sh"
+{{ if eq .chezmoi.arch "arm64" -}}
+/opt/homebrew/bin/brew shellenv | source
+{{ else -}}
+/usr/local/bin/brew shellenv | source
+{{ end -}}
+mise activate fish | source
+# fish_add_path "/Users/dorseyj/.bun/bin"
+fish_add_path "$HOME/bin"
+fish_add_path "/opt/homebrew/Caskroom/sqlcl/25.3.1.311.1257/sqlcl/bin"
+
+{{ if .jira_api_token -}}
+set -gx JIRA_API_TOKEN {{ .jira_api_token | quote }}
+{{ end -}}
+
+# Set tfenv to use amd rather than arm architecture (was default for non M1 macs)
+set -gx TFENV_ARCH amd64
+set -gx GODEBUG asyncpreemptoff=1
+
+{{ if .cert_path -}}
+set -gx SSL_CERT_FILE {{ .cert_path }}
+set -gx NODE_EXTRA_CA_CERTS {{ .cert_path }}
+set -gx REQUESTS_CA_BUNDLE {{ .cert_path }}
+set -gx AWS_CA_BUNDLE {{ .cert_path }}
+{{ end -}}
+
+alias tf "bass scripts/iterraform.sh"
+alias cat "bat --style=plain --paging=never"
+alias find fd
+alias j just
+alias vim nvim
+alias copilot "env SHELL=/opt/homebrew/bin/bash copilot"
+
+zoxide init fish | source
+# starship init fish | source
+
+# argc-completions
+set -gx ARGC_COMPLETIONS_ROOT "/Users/dorseyj/.config/argc-completions"
+set -gx ARGC_COMPLETIONS_PATH "$ARGC_COMPLETIONS_ROOT/completions/macos:$ARGC_COMPLETIONS_ROOT/completions"
+fish_add_path "$ARGC_COMPLETIONS_ROOT/bin"
+# To add completions for only the specified command, modify next line e.g. set argc_scripts cargo git
+set argc_scripts (ls -p -1 "$ARGC_COMPLETIONS_ROOT/completions/macos" "$ARGC_COMPLETIONS_ROOT/completions" | sed -n 's/\.sh$//p')
+argc --argc-completions fish $argc_scripts | source
+
+alias ls eza
+fish_vi_key_bindings
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/dorseyj/.lmstudio/bin
+# End of LM Studio CLI section

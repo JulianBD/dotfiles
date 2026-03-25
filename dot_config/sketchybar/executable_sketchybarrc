@@ -1,0 +1,24 @@
+#!/usr/bin/env lua
+
+-- SbarLua entry point
+-- Docs: https://github.com/FelixKratz/SbarLua
+
+package.cpath = package.cpath .. ";/Users/" .. os.getenv("USER") .. "/.local/share/sketchybar_lua/?.so"
+local sbar = require("sketchybar")
+
+-- Bundle initial config into a single message for fast startup
+sbar.begin_config()
+require("bar")
+require("default")
+require("items.spaces")
+-- Right items: loaded right-to-left (first added = rightmost)
+require("items.clock")
+require("items.battery")
+require("items.volume")
+require("items.separator")
+require("items.front_app")
+require("items.right_bracket")  -- bracket must be after all items it groups
+sbar.end_config()
+
+-- Run the event loop (blocks, handles all callbacks)
+sbar.event_loop()

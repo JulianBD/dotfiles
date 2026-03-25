@@ -1,0 +1,18 @@
+#!/bin/bash
+# Brewfile hash: {{ include "dot_Brewfile.tmpl" | sha256sum }}
+set -euo pipefail
+
+{{ if eq .chezmoi.arch "arm64" -}}
+BREW_PREFIX="/opt/homebrew"
+{{ else -}}
+BREW_PREFIX="/usr/local"
+{{ end -}}
+
+if ! command -v brew &>/dev/null; then
+    echo "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+eval "$($BREW_PREFIX/bin/brew shellenv)"
+
+echo "Running brew bundle..."
+brew bundle --global --no-lock
