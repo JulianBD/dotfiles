@@ -1,0 +1,63 @@
+# rc.elv — Interactive elvish configuration
+# Managed by chezmoi
+
+# --- Environment & PATH ---
+
+{{ if eq .chezmoi.arch "arm64" -}}
+set paths = [/opt/homebrew/bin /opt/homebrew/sbin $@paths]
+{{ else -}}
+set paths = [/usr/local/bin /usr/local/sbin $@paths]
+{{ end -}}
+
+# Use --shims mode: mise's hook-based activation has an elvish
+# compatibility issue (edit:before-readline in non-interactive eval).
+# Shims mode just prepends the shims directory to PATH.
+eval (mise activate elvish --shims | slurp)
+
+set paths = [$E:HOME/bin $E:HOME/.ghcup/bin $E:HOME/.cabal/bin $@paths]
+
+set-env TFENV_ARCH amd64
+set-env GODEBUG asyncpreemptoff=1
+set-env IGNORE_AUTH_TEST true
+set-env IGNORE_HOST_CONF true
+
+{{ if .jira_api_token -}}
+set-env JIRA_API_TOKEN {{ .jira_api_token | squote }}
+{{ end -}}
+
+{{ if .cert_path -}}
+set-env SSL_CERT_FILE {{ .cert_path }}
+set-env NODE_EXTRA_CA_CERTS {{ .cert_path }}
+set-env REQUESTS_CA_BUNDLE {{ .cert_path }}
+set-env AWS_CA_BUNDLE {{ .cert_path }}
+{{ end -}}
+
+# --- Packages ---
+
+use epm
+epm:install &silent-if-installed ^
+  github.com/zzamboni/elvish-modules ^
+  github.com/xiaq/edit.elv ^
+  github.com/crinklywrappr/rivendell
+
+# --- Prompt (Starship) ---
+
+if (has-external starship) {
+  eval (starship init elvish --print-full-init | slurp)
+}
+
+# --- Navigation (Zoxide) ---
+
+if (has-external zoxide) {
+  eval (zoxide init elvish | slurp)
+}
+
+# --- Interactive editor setup ---
+# edit: namespace is only available at runtime, not compile time,
+# so all edit: references must live inside eval (separate compilation unit).
+
+eval (slurp < ~/.config/elvish/interactive.elv)
+
+# --- Dotfiles theme system ---
+
+use dotfiles

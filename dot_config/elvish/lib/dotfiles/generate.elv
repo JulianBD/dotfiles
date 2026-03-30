@@ -51,12 +51,12 @@ fn ghostty {|palette name|
   var magenta-br = (c $palette magenta-warmer $magenta)
   var cyan-br    = (c $palette cyan-warmer $cyan)
 
-  var black    = (c $palette bg-dim $bg)
-  var white    = (c $palette fg-dim $fg)
-  var black-br = (c $palette bg-active $black)
-  var white-br = $fg
+  var black    = (c $palette bg-dim (c $palette bg-shadow-subtle $bg))
+  var white    = (c $palette fg-dim (c $palette fg-neutral $fg))
+  var black-br = (c $palette bg-active (c $palette bg-neutral $black))
+  var white-br = (c $palette fg-alt (c $palette fg-shadow-intense $fg))
 
-  var sel-bg = (c $palette bg-region (c $palette bg-active $black))
+  var sel-bg = (c $palette bg-region (c $palette bg-neutral (c $palette bg-shadow-intense $black)))
   var sel-fg = $fg
 
   printf "# Auto-generated from palette: %s\n" $name >$out
@@ -84,15 +84,15 @@ fn sketchybar {|palette|
   var bg = (hex $palette[bg-main])
   var fg = (hex $palette[fg-main])
 
-  var p0  = (hex (c $palette bg-dim $palette[bg-main]))
+  var p0  = (hex (c $palette bg-dim (c $palette bg-shadow-subtle $palette[bg-main])))
   var p1  = (hex (c $palette red (c $palette fg-red $palette[fg-main])))
   var p2  = (hex (c $palette green (c $palette fg-green $palette[fg-main])))
   var p3  = (hex (c $palette yellow (c $palette fg-yellow $palette[fg-main])))
   var p4  = (hex (c $palette blue (c $palette fg-blue $palette[fg-main])))
   var p5  = (hex (c $palette magenta (c $palette fg-magenta $palette[fg-main])))
   var p6  = (hex (c $palette cyan (c $palette fg-cyan $palette[fg-main])))
-  var p7  = (hex (c $palette fg-dim $palette[fg-main]))
-  var p8  = (hex (c $palette bg-active (c $palette bg-neutral $palette[bg-main])))
+  var p7  = (hex (c $palette fg-dim (c $palette fg-neutral $palette[fg-main])))
+  var p8  = (hex (c $palette bg-active (c $palette bg-neutral (c $palette bg-shadow-intense $palette[bg-main]))))
   var p9  = (hex (c $palette red-warmer $p1))
   var p10 = (hex (c $palette green-warmer $p2))
   var p11 = (hex (c $palette yellow-warmer $p3))
@@ -268,10 +268,30 @@ fn wallpaper {|palette|
   }
 }
 
+# --- JankyBorders ---
+
+fn borders {|palette|
+  var out = ~/.config/borders/bordersrc
+  mkdir -p ~/.config/borders
+  var active = (hex (c $palette blue (c $palette fg-blue $palette[fg-main])))
+  var inactive = (hex (c $palette bg-active (c $palette bg-dim $palette[bg-main])))
+  {
+    echo '#!/bin/bash'
+    echo '# Auto-generated from theme palette — do not edit manually'
+    echo '# Regenerate with: theme:apply'
+    echo 'borders active_color=0xff'$active' inactive_color=0x44'$inactive' width=5.0 style=round hidpi=on'
+  } >$out
+  chmod +x $out
+  # Live-update running borders instance
+  try { e:borders active_color=0xff$active inactive_color=0x44$inactive width=5.0 style=round hidpi=on &disown } catch e { }
+  echo "Generated "$out
+}
+
 # --- All ---
 
 fn all {|palette name|
   ghostty $palette $name
   sketchybar $palette
+  borders $palette
   wallpaper $palette
 }

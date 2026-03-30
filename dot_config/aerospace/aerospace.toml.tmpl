@@ -43,35 +43,33 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 # Also see: https://nikitabobko.github.io/AeroSpace/goodies#disable-hide-app
 automatically-unhide-macos-hidden-apps = true
 
-# Workspace model:
-# - Primary monitor: 1-8 (general work)
-# - Secondary monitor: C (comms browser), M (media), P1-P4 (personal)
-persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "C", "M", "P1", "P2", "P3", "P4"]
+# Workspace model: 3 groups of 4
+# - Primary monitor: A1-A4, B1-B4
+# - Secondary monitor: C1-C4
+persistent-workspaces = ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4"]
 
 exec-on-workspace-change = ['/bin/bash', '-c',
-    'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE'
+    '/usr/local/bin/sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE PREV_WORKSPACE=$AEROSPACE_PREV_WORKSPACE'
 ]
-on-focus-changed = ['exec-and-forget sketchybar --trigger aerospace_mode_changed']
-on-mode-changed = ['exec-and-forget sketchybar --trigger aerospace_mode_changed']
+on-focus-changed = ['exec-and-forget /usr/local/bin/sketchybar --trigger aerospace_mode_changed']
+on-mode-changed = ['exec-and-forget /usr/local/bin/sketchybar --trigger aerospace_mode_changed']
 
 # Pin workspaces to monitors (prevents workspaces "drifting" when docked)
 # Monitor numbers are machine-specific — set via chezmoi init
 [workspace-to-monitor-force-assignment]
-1 = {{ .primary_monitor }}
-2 = {{ .primary_monitor }}
-3 = {{ .primary_monitor }}
-4 = {{ .primary_monitor }}
-5 = {{ .primary_monitor }}
-6 = {{ .primary_monitor }}
-7 = {{ .primary_monitor }}
-8 = {{ .primary_monitor }}
+A1 = {{ .primary_monitor }}
+A2 = {{ .primary_monitor }}
+A3 = {{ .primary_monitor }}
+A4 = {{ .primary_monitor }}
+B1 = {{ .primary_monitor }}
+B2 = {{ .primary_monitor }}
+B3 = {{ .primary_monitor }}
+B4 = {{ .primary_monitor }}
 
-C = {{ .secondary_monitor }}
-M = {{ .secondary_monitor }}
-P1 = {{ .secondary_monitor }}
-P2 = {{ .secondary_monitor }}
-P3 = {{ .secondary_monitor }}
-P4 = {{ .secondary_monitor }}
+C1 = {{ .secondary_monitor }}
+C2 = {{ .secondary_monitor }}
+C3 = {{ .secondary_monitor }}
+C4 = {{ .secondary_monitor }}
 
 # Possible values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
@@ -139,35 +137,44 @@ alt-shift-j = 'move --boundaries all-monitors-outer-frame down'
 alt-shift-k = 'move --boundaries all-monitors-outer-frame up'
 alt-shift-l = 'move --boundaries all-monitors-outer-frame right'
 
+# Layout
+alt-slash = 'layout tiles horizontal vertical'
+alt-comma = 'layout accordion horizontal vertical'
+
+# Resize
+alt-minus = 'resize smart -50'
+alt-equal = 'resize smart +50'
+
+# Service mode
+alt-shift-semicolon = 'mode service'
+
 # Workspace switching
-alt-1 = 'workspace 1'
-alt-2 = 'workspace 2'
-alt-3 = 'workspace 3'
-alt-4 = 'workspace 4'
-alt-5 = 'workspace 5'
-alt-6 = 'workspace 6'
-alt-7 = 'workspace 7'
-alt-8 = 'workspace 8'
-alt-c = 'workspace C'
-alt-leftSquareBracket = 'workspace P1'
-alt-rightSquareBracket = 'workspace P2'
-alt-9 = 'workspace P3'
-alt-0 = 'workspace P4'
+alt-1 = 'workspace A1'
+alt-2 = 'workspace A2'
+alt-3 = 'workspace A3'
+alt-4 = 'workspace A4'
+alt-5 = 'workspace B1'
+alt-6 = 'workspace B2'
+alt-7 = 'workspace B3'
+alt-8 = 'workspace B4'
+alt-9 = 'workspace C1'
+alt-0 = 'workspace C2'
+alt-leftSquareBracket = 'workspace C3'
+alt-rightSquareBracket = 'workspace C4'
 
 # Move node to workspace
-alt-shift-1 = 'move-node-to-workspace 1 --focus-follows-window'
-alt-shift-2 = 'move-node-to-workspace 2 --focus-follows-window'
-alt-shift-3 = 'move-node-to-workspace 3 --focus-follows-window'
-alt-shift-4 = 'move-node-to-workspace 4 --focus-follows-window'
-alt-shift-5 = 'move-node-to-workspace 5 --focus-follows-window'
-alt-shift-6 = 'move-node-to-workspace 6 --focus-follows-window'
-alt-shift-7 = 'move-node-to-workspace 7 --focus-follows-window'
-alt-shift-8 = 'move-node-to-workspace 8 --focus-follows-window'
-alt-shift-c = 'move-node-to-workspace C --focus-follows-window'
-alt-shift-leftSquareBracket = 'move-node-to-workspace P1 --focus-follows-window'
-alt-shift-rightSquareBracket = 'move-node-to-workspace P2 --focus-follows-window'
-alt-shift-9 = 'move-node-to-workspace P3 --focus-follows-window'
-alt-shift-0 = 'move-node-to-workspace P4 --focus-follows-window'
+alt-shift-1 = 'move-node-to-workspace A1 --focus-follows-window'
+alt-shift-2 = 'move-node-to-workspace A2 --focus-follows-window'
+alt-shift-3 = 'move-node-to-workspace A3 --focus-follows-window'
+alt-shift-4 = 'move-node-to-workspace A4 --focus-follows-window'
+alt-shift-5 = 'move-node-to-workspace B1 --focus-follows-window'
+alt-shift-6 = 'move-node-to-workspace B2 --focus-follows-window'
+alt-shift-7 = 'move-node-to-workspace B3 --focus-follows-window'
+alt-shift-8 = 'move-node-to-workspace B4 --focus-follows-window'
+alt-shift-9 = 'move-node-to-workspace C1 --focus-follows-window'
+alt-shift-0 = 'move-node-to-workspace C2 --focus-follows-window'
+alt-shift-leftSquareBracket = 'move-node-to-workspace C3 --focus-follows-window'
+alt-shift-rightSquareBracket = 'move-node-to-workspace C4 --focus-follows-window'
 
 # Workspace back and forth / move workspace to monitor
 alt-tab = 'workspace-back-and-forth'
@@ -177,11 +184,11 @@ alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
 [[on-window-detected]]
     if.app-id = 'app.zen-browser.zen'
     if.window-title-regex-substring = 'Slack|Mail|Calendar|Teams'
-    run = ['layout tiling', 'move-node-to-workspace C']
+    run = ['layout tiling', 'move-node-to-workspace C1']
 
 [[on-window-detected]]
     if.app-id = 'com.spotify.client'
-    run = ['layout tiling', 'move-node-to-workspace M']
+    run = ['layout tiling', 'move-node-to-workspace C2']
 
 
 # 'service' binding mode declaration.

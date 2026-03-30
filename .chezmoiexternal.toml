@@ -1,0 +1,6 @@
+[".config/helix/runtime"]
+    type = "archive"
+    url = "https://github.com/helix-editor/helix/archive/refs/heads/master.tar.gz"
+    stripComponents = 2
+    include = ["helix-master/runtime/**"]
+    refreshPeriod = "168h"

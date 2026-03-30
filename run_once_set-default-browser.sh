@@ -1,13 +1,7 @@
 #!/bin/bash
 # Set default browser to Helium
+# TODO: find a replacement for `m defaultbrowser` (removed in m-cli v2)
 set -euo pipefail
 
-eval "$($([ -f /opt/homebrew/bin/brew ] && echo /opt/homebrew/bin/brew || echo /usr/local/bin/brew) shellenv)"
-
-if ! command -v m &>/dev/null; then
-    echo "m-cli not installed yet, skipping default browser setup"
-    exit 0
-fi
-
-echo "Setting default browser to Helium..."
-m defaultbrowser com.nickvision.helium
+echo "Skipping default browser setup (m-cli defaultbrowser removed in v2)"
+exit 0

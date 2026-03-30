@@ -1,0 +1,74 @@
+# interactive.elv — Editor config, aliases, keybindings, completions
+# Loaded via eval from rc.elv (edit: namespace requires a separate compilation unit).
+
+use readline-binding
+
+# --- Packages that touch edit: ---
+
+use github.com/zzamboni/elvish-modules/alias
+use github.com/zzamboni/elvish-modules/bang-bang
+use github.com/zzamboni/elvish-modules/dir
+use github.com/zzamboni/elvish-modules/terminal-title
+use github.com/zzamboni/elvish-modules/long-running-notifications
+use github.com/xiaq/edit.elv/smart-matcher
+
+# Smart completion: prefix → substring → subsequence, with smart-case
+smart-matcher:apply
+
+# --- Aliases ---
+
+if (has-external bat) {
+  alias:new cat bat --style=plain --paging=never
+}
+
+if (has-external eza) {
+  alias:new ls eza
+  alias:new lt eza --tree --level=2 --long --icons --git
+}
+
+if (has-external fd) {
+  alias:new find fd
+}
+
+if (has-external nvim) {
+  alias:new vim nvim
+}
+
+alias:new j just
+
+# --- Directory navigation (Alt-b / Alt-f / Alt-i) ---
+
+set edit:insert:binding[Alt-b] = $dir:left-word-or-prev-dir~
+set edit:insert:binding[Alt-f] = $dir:right-word-or-next-dir~
+set edit:insert:binding[Alt-i] = $dir:history-chooser~
+
+# --- Keybindings ---
+
+# Ctrl-R: fuzzy history search via fzf
+if (has-external fzf) {
+  set edit:insert:binding[Ctrl-R] = {
+    var cmd = ""
+    try {
+      set cmd = (
+        edit:command-history &dedup &newest-first |
+        each {|entry| put $entry[cmd] } |
+        e:fzf --height=40% --reverse --no-sort |
+        slurp
+      )
+    } catch e { }
+    use str
+    set cmd = (str:trim-space $cmd)
+    if (not-eq $cmd "") {
+      edit:replace-input $cmd
+    }
+  }
+}
+
+# --- Completions (carapace: 400+ commands) ---
+
+if (has-external carapace) {
+  eval (carapace _carapace elvish | slurp)
+}
+
+# Stale prompt: dim instead of invert
+set edit:prompt-stale-transform = {|x| styled $x "bright-black" }

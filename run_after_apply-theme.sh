@@ -16,6 +16,9 @@ if [ ! -f "$CURRENT_THEME_FILE" ]; then
     exit 0
 fi
 
+echo "Syncing theme palette database..."
+elvish -c "use dotfiles/palette; palette:sync"
+
 THEME=$(cat "$CURRENT_THEME_FILE" | tr -d '[:space:]')
 echo "Applying theme: $THEME"
 elvish -c "use dotfiles/theme; theme:apply $THEME"

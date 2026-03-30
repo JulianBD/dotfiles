@@ -2,15 +2,15 @@ local sbar = require("sketchybar")
 local colors = require("colors")
 local icons = require("icons")
 
--- Workspace definitions
-local all_workspaces = { "1","2","3","4","5","6","7","8","C","M","P1","P2","P3","P4" }
+-- Workspace definitions: 3 groups of 4
+local all_workspaces = { "A1","A2","A3","A4","B1","B2","B3","B4","C1","C2","C3","C4" }
 
--- Color groups by workspace
+-- Color groups by workspace prefix
 local function group_colors(ws)
-  local n = tonumber(ws)
-  if n and n >= 1 and n <= 4 then
+  local prefix = ws:sub(1, 1)
+  if prefix == "A" then
     return colors.space_group1, colors.space_group1_bg
-  elseif n and n >= 5 and n <= 8 then
+  elseif prefix == "B" then
     return colors.space_group2, colors.space_group2_bg
   else
     return colors.space_group3, colors.space_group3_bg
@@ -100,8 +100,8 @@ local function update_workspace(ws)
       else
         -- Has windows: show app icons
         local icon_str = ""
-        for app in result:gmatch("[^\r\n]+") do
-          app = app:match("^%s*(.-)%s*$") -- trim
+        for app_raw in result:gmatch("[^\r\n]+") do
+          local app = app_raw:match("^%s*(.-)%s*$") -- trim
           if app ~= "" then
             icon_str = icon_str .. app_icon(app)
           end

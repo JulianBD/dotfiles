@@ -45,11 +45,18 @@ brew "numpy"
 brew "poppler"
 
 # --- CLI tools (brew-only or need native integration) ------------------------
+brew "choose"
+brew "delta"
+brew "eza"
+brew "fd"
 brew "gh"
+brew "go-jsonnet"
+brew "yarn"
 brew "m-cli"
 brew "mise"
 brew "pandoc"
 brew "tmux"
+brew "carapace"
 brew "tree"
 brew "watch"
 {{ if ne .machine_type "casual" -}}
@@ -65,7 +72,7 @@ brew "radiusmethod/awsd/awsd"
 {{ end -}}
 
 # --- Desktop environment ----------------------------------------------------
-brew "d12frosted/emacs-plus/emacs-plus@31"
+cask "d12frosted/emacs-plus/emacs-plus-app"
 brew "felixkratz/formulae/borders"
 brew "felixkratz/formulae/sketchybar"
 
@@ -97,6 +104,7 @@ cask "raindropio"
 {{ end -}}
 
 # --- Fonts -------------------------------------------------------------------
+cask "font-aporetic"
 cask "font-atkinson-hyperlegible"
 cask "font-atkinson-hyperlegible-mono"
 cask "font-atkinson-hyperlegible-next"

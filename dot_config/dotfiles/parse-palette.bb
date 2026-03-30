@@ -36,10 +36,12 @@
       (str/includes? theme-name "operandi")             "light"
       (str/includes? theme-name "vivendi")              "dark"
       ;; Fallback: check if bg-main is dark (< #808080)
-      :else (let [bg (re-find #"bg-main\s+\"#([0-9a-fA-F]{2})" source)]
-              (if (and bg (< (Integer/parseInt (second (re-find #"#([0-9a-fA-F]{2})" bg)) 16) 0x80))
-                "dark"
-                "light")))))
+      :else (let [m (re-find #"bg-main\s+\"#([0-9a-fA-F]{2})" source)]
+              (if (and m (vector? m))
+                (if (< (Integer/parseInt (second m) 16) 0x80)
+                  "dark"
+                  "light")
+                "dark")))))
 
 (defn extract-theme-name
   "Derive the theme name from the filename.
@@ -69,7 +71,7 @@
                            escaped (str/replace pat "-" "\\-")
                            re (re-pattern (str "(?s)(?:defconst|defvar)\\s+"
                                                escaped
-                                               "\\s+(?:\\(append\\s+)?'?\\s*\\(\\s*(\\(.+?\\))\\s*\\)"))
+                                               "\\s+(?:\\(append\\s+)?'?\\s*\\((?:\\s|;;[^\\n]*)*(\\(.+?\\))\\s*\\)"))
                            matches (re-seq re source)]
                        (when (seq matches)
                          (str/join "\n" (map second matches)))))]

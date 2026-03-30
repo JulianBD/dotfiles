@@ -14,6 +14,8 @@ alias eks-control-worker "~/working/tio-hm-ce-eks-control-worker/start-console.s
 mise activate fish | source
 # fish_add_path "/Users/dorseyj/.bun/bin"
 fish_add_path "$HOME/bin"
+fish_add_path "$HOME/.ghcup/bin"
+fish_add_path "$HOME/.cabal/bin"
 fish_add_path "/opt/homebrew/Caskroom/sqlcl/25.3.1.311.1257/sqlcl/bin"
 
 {{ if .jira_api_token -}}
