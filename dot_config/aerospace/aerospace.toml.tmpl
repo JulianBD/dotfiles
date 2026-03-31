@@ -55,6 +55,7 @@ exec-on-workspace-change = ['/bin/bash', '-c',
 
 # Pin workspaces to monitors (prevents workspaces "drifting" when docked)
 # Monitor numbers are machine-specific — set via chezmoi init
+{{ if .secondary_monitor -}}
 [workspace-to-monitor-force-assignment]
 A1 = {{ .primary_monitor }}
 A2 = {{ .primary_monitor }}
@@ -74,6 +75,7 @@ D1 = {{ .secondary_monitor }}
 D2 = {{ .secondary_monitor }}
 D3 = {{ .secondary_monitor }}
 D4 = {{ .secondary_monitor }}
+{{ end -}}
 
 # Possible values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
