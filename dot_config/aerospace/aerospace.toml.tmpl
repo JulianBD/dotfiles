@@ -53,29 +53,6 @@ exec-on-workspace-change = ['/bin/bash', '-c',
 ]
 # on-focus-changed not needed — exec-on-workspace-change handles all workspace switches
 
-# Pin workspaces to monitors (prevents workspaces "drifting" when docked)
-# Monitor numbers are machine-specific — set via chezmoi init
-{{ if .secondary_monitor -}}
-[workspace-to-monitor-force-assignment]
-A1 = {{ .primary_monitor }}
-A2 = {{ .primary_monitor }}
-A3 = {{ .primary_monitor }}
-A4 = {{ .primary_monitor }}
-B1 = {{ .primary_monitor }}
-B2 = {{ .primary_monitor }}
-B3 = {{ .primary_monitor }}
-B4 = {{ .primary_monitor }}
-
-C1 = {{ .secondary_monitor }}
-C2 = {{ .secondary_monitor }}
-C3 = {{ .secondary_monitor }}
-C4 = {{ .secondary_monitor }}
-
-D1 = {{ .secondary_monitor }}
-D2 = {{ .secondary_monitor }}
-D3 = {{ .secondary_monitor }}
-D4 = {{ .secondary_monitor }}
-{{ end -}}
 
 # Possible values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
@@ -94,7 +71,11 @@ inner.horizontal = 10
 inner.vertical = 10
 outer.left = 10
 outer.bottom = 10
-outer.top = [{{ "{" }}monitor."{{ .builtin_display_pattern }}" = {{ .outer_top_builtin }}{{ "}" }}{{ if and .lg_4k_pattern .outer_top_lg_4k }}, {{ "{" }}monitor."{{ .lg_4k_pattern }}" = {{ .outer_top_lg_4k }}{{ "}" }}{{ end }}{{ if and .lg_1440_pattern .outer_top_lg_1440 }}, {{ "{" }}monitor."{{ .lg_1440_pattern }}" = {{ .outer_top_lg_1440 }}{{ "}" }}{{ end }}, {{ .outer_top_default }}]
+{{- /* M3 MBP has notch — OS reserves menubar space. M1/i9 have no notch — need extra top gap */ -}}
+{{- $topGap := 42 -}}{{- /* no-notch default: 10 gap + 32 menubar */ -}}
+{{- if eq .machine_type "work" -}}{{- $topGap = 10 -}}{{- /* notch machine: OS handles menubar */ -}}
+{{- end }}
+outer.top = {{ $topGap }}
 outer.right = 10
 
 # 'main' binding mode declaration
