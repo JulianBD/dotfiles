@@ -21,7 +21,7 @@
   [text]
   (->> text
        (re-seq #"\((\S+)\s+\"(#[0-9a-fA-F]{6})\"\)")
-       (map (fn [[_ name color]] [name color]))
+       (map (fn [[_ name color]] [(str/replace name #"^\(+" "") color]))
        (into {})))
 
 (defn detect-variant
