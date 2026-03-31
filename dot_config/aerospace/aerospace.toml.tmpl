@@ -92,7 +92,7 @@ inner.horizontal = 10
 inner.vertical = 10
 outer.left = 10
 outer.bottom = 10
-outer.top = [{{ "{" }}monitor."{{ .builtin_display_pattern }}" = {{ .outer_top_builtin }}{{ "}" }}, {{ "{" }}monitor."{{ .lg_4k_pattern }}" = {{ .outer_top_lg_4k }}{{ "}" }}, {{ "{" }}monitor."{{ .lg_1440_pattern }}" = {{ .outer_top_lg_1440 }}{{ "}" }}, {{ .outer_top_default }}]
+outer.top = [{{ "{" }}monitor."{{ .builtin_display_pattern }}" = {{ .outer_top_builtin }}{{ "}" }}{{ if and .lg_4k_pattern .outer_top_lg_4k }}, {{ "{" }}monitor."{{ .lg_4k_pattern }}" = {{ .outer_top_lg_4k }}{{ "}" }}{{ end }}{{ if and .lg_1440_pattern .outer_top_lg_1440 }}, {{ "{" }}monitor."{{ .lg_1440_pattern }}" = {{ .outer_top_lg_1440 }}{{ "}" }}{{ end }}, {{ .outer_top_default }}]
 outer.right = 10
 
 # 'main' binding mode declaration

@@ -1,5 +1,5 @@
 {{- $hostname := promptStringOnce . "hostname" "Hostname" -}}
-{{- $machineType := promptChoiceOnce . "machine_type" "Machine type (1=work, 2=dev, 3=casual)" (list "work" "dev" "casual") -}}
+{{- $machineType := promptChoiceOnce . "machine_type" "Machine type — type w/d/c to pick" (list "work" "dev" "casual") -}}
 
 {{/* Aerospace: monitor assignments */}}
 {{- $primaryMonitor := promptStringOnce . "primary_monitor" "Aerospace primary monitor number (e.g., 1)" -}}
@@ -7,6 +7,12 @@
 {{- $builtinDisplayPattern := promptStringOnce . "builtin_display_pattern" "Built-in display regex for aerospace (e.g., ^built-in retina display$)" -}}
 {{- $outerTopBuiltin := promptStringOnce . "outer_top_builtin" "Aerospace outer.top gap for built-in display (e.g., 14)" -}}
 {{- $outerTopDefault := promptStringOnce . "outer_top_default" "Aerospace outer.top gap default (e.g., 14)" -}}
+
+{{/* External monitor patterns (blank if no external monitors) */}}
+{{- $lg4kPattern := promptStringOnce . "lg_4k_pattern" "LG 4K monitor regex (blank if none, e.g., LG.*4K.*)" -}}
+{{- $outerTopLg4k := promptStringOnce . "outer_top_lg_4k" "Aerospace outer.top gap for LG 4K (blank if none, e.g., 20)" -}}
+{{- $lg1440Pattern := promptStringOnce . "lg_1440_pattern" "LG 1440 monitor regex (blank if none, e.g., LG.*1440.*)" -}}
+{{- $outerTopLg1440 := promptStringOnce . "outer_top_lg_1440" "Aerospace outer.top gap for LG 1440 (blank if none, e.g., 20)" -}}
 
 {{/* Tuna: carbon key codes */}}
 {{- $tunaActivateKeyCode := promptStringOnce . "tuna_activate_keycode" "Tuna activate carbonKeyCode (e.g., 49)" -}}
@@ -29,6 +35,10 @@
   builtin_display_pattern = {{ $builtinDisplayPattern | quote }}
   outer_top_builtin = {{ $outerTopBuiltin | quote }}
   outer_top_default = {{ $outerTopDefault | quote }}
+  lg_4k_pattern = {{ $lg4kPattern | quote }}
+  outer_top_lg_4k = {{ $outerTopLg4k | quote }}
+  lg_1440_pattern = {{ $lg1440Pattern | quote }}
+  outer_top_lg_1440 = {{ $outerTopLg1440 | quote }}
   tuna_activate_keycode = {{ $tunaActivateKeyCode | quote }}
   tuna_activate_modifiers = {{ $tunaActivateModifiers | quote }}
   tuna_leader_keycode = {{ $tunaLeaderKeyCode | quote }}
