@@ -130,8 +130,8 @@ local function update_icons(ws)
         item:set({ icon = { string = ws, font = "Aporetic Sans:Bold:12.0", padding_left = 10, padding_right = 10 } })
       else
         local icon_str = ""
-        for app in result:gmatch("[^\r\n]+") do
-          app = app:match("^%s*(.-)%s*$")
+        for raw_app in result:gmatch("[^\r\n]+") do
+          local app = raw_app:match("^%s*(.-)%s*$")
           if app ~= "" then icon_str = icon_str .. app_icon(app) end
         end
         if icon_str ~= "" then
