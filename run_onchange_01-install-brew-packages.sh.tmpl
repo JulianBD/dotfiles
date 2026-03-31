@@ -2,11 +2,7 @@
 # Brewfile hash: {{ include "dot_Brewfile.tmpl" | sha256sum }}
 set -euo pipefail
 
-{{ if eq .chezmoi.arch "arm64" -}}
-BREW_PREFIX="/opt/homebrew"
-{{ else -}}
-BREW_PREFIX="/usr/local"
-{{ end -}}
+BREW_PREFIX="{{ .brew_prefix }}"
 
 if ! command -v brew &>/dev/null; then
     echo "Installing Homebrew..."
@@ -15,4 +11,7 @@ fi
 eval "$($BREW_PREFIX/bin/brew shellenv)"
 
 echo "Running brew bundle..."
-brew bundle --global
+brew bundle --global --no-upgrade || {
+    echo "brew bundle reported failures (font conflicts are expected if already installed)"
+    echo "Continuing..."
+}

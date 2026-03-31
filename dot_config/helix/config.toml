@@ -1,0 +1,4 @@
+theme = "prot-current"
+
+[editor.file-picker]
+hidden = false

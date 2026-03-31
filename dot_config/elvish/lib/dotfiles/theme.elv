@@ -46,7 +46,7 @@ fn apply {|name|
   }
 
   # Generate all downstream configs from the palette database
-  generate:all $p $name
+  generate:all $p $name &variant=$variant
 
   # Record as current theme
   palette:set-current $name

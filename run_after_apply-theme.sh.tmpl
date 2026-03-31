@@ -2,7 +2,7 @@
 # Apply current theme to all downstream configs via elvish
 set -euo pipefail
 
-eval "$($([ -f /opt/homebrew/bin/brew ] && echo /opt/homebrew/bin/brew || echo /usr/local/bin/brew) shellenv)"
+eval "$({{ .brew_prefix }}/bin/brew shellenv)"
 
 if ! command -v elvish &>/dev/null; then
     echo "elvish not installed yet, skipping theme apply"

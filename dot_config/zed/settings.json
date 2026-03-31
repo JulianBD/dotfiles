@@ -1,0 +1,52 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "terminal": {
+    "dock": "bottom",
+    "font_family": "Monaspace Argon NF",
+    "font_weight": 150,
+    "font_features": { "calt": true },
+    "line_height": { "custom": 1 },
+    "option_as_meta": true
+  },
+  "agent": {
+    "model_parameters": [],
+    "default_model": {
+      "provider": "copilot_chat",
+      "model": "claude-3.7-sonnet"
+    }
+  },
+
+  "autosave": { "after_delay": { "milliseconds": 1000 } },
+  "ui_font_size": 16,
+  "ui_font_family": "Monaspace Neon Var",
+  "buffer_font_size": 16,
+  "buffer_font_family": "Monaspace Argon NF",
+  "buffer_font_features": {
+    "calt": true,
+    "liga": true,
+    "ss01": true,
+    "ss02": true,
+    "ss03": true,
+    "ss04": true,
+    "ss05": true,
+    "ss06": true,
+    "ss07": true,
+    "ss08": true,
+    "ss09": true,
+    "ss10": true,
+    "cv31": true,
+    "cv32": true
+  },
+  "theme": "Prot Current",
+  "icon_theme": "Zed (Default)",
+  "title_bar": {
+    "show_sign_in": false
+  }
+}

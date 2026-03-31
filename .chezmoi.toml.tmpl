@@ -1,5 +1,5 @@
 {{- $hostname := promptStringOnce . "hostname" "Hostname" -}}
-{{- $machineType := promptChoiceOnce . "machine_type" "Machine type" (list "work" "dev" "casual") -}}
+{{- $machineType := promptChoiceOnce . "machine_type" "Machine type (1=work, 2=dev, 3=casual)" (list "work" "dev" "casual") -}}
 
 {{/* Aerospace: monitor assignments */}}
 {{- $primaryMonitor := promptStringOnce . "primary_monitor" "Aerospace primary monitor number (e.g., 1)" -}}
@@ -23,6 +23,7 @@
 [data]
   hostname = {{ $hostname | quote }}
   machine_type = {{ $machineType | quote }}
+  brew_prefix = {{ if eq .chezmoi.arch "arm64" }}"/opt/homebrew"{{ else }}"/usr/local"{{ end }}
   primary_monitor = {{ $primaryMonitor | quote }}
   secondary_monitor = {{ $secondaryMonitor | quote }}
   builtin_display_pattern = {{ $builtinDisplayPattern | quote }}
