@@ -11,7 +11,7 @@ sbar.default({
     padding_right = 10,
   },
   label = {
-    font = "Aporetic Sans:Bold:14.0",
+    font = "Monaspace Neon NF:Bold:14.0",
     color = colors.label_color,
     padding_left = 0,
     padding_right = 10,

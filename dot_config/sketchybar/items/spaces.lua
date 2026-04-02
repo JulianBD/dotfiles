@@ -54,7 +54,7 @@ local function create_items(workspaces, display_id)
       },
       icon = {
         string = ws,
-        font = "Aporetic Sans:Bold:12.0",
+        font = "Monaspace Neon NF:Bold:12.0",
         color = colors.text_muted,
         padding_left = 10,
         padding_right = 10,
@@ -127,7 +127,7 @@ local function update_icons(ws)
     "aerospace list-windows --workspace " .. ws .. " 2>/dev/null | awk -F'|' '{gsub(/^ *| *$/, \"\", $2); print $2}' | sort -u | grep -v '^$'",
     function(result)
       if not result or result == "" then
-        item:set({ icon = { string = ws, font = "Aporetic Sans:Bold:12.0", padding_left = 10, padding_right = 10 } })
+        item:set({ icon = { string = ws, font = "Monaspace Neon NF:Bold:12.0", padding_left = 10, padding_right = 10 } })
       else
         local icon_str = ""
         for raw_app in result:gmatch("[^\r\n]+") do

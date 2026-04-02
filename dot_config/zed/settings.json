@@ -7,12 +7,13 @@
 // custom settings, run `zed: open default settings` from the
 // command palette (cmd-shift-p / ctrl-shift-p)
 {
+  "helix_mode": true,
   "terminal": {
     "dock": "bottom",
     "font_family": "Monaspace Argon NF",
-    "font_weight": 150,
+    "font_weight": 400,
     "font_features": { "calt": true },
-    "line_height": { "custom": 1 },
+    "line_height": { "custom": 1.0 },
     "option_as_meta": true
   },
   "agent": {
