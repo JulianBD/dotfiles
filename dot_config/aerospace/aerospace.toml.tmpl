@@ -71,11 +71,20 @@ inner.horizontal = 10
 inner.vertical = 10
 outer.left = 10
 outer.bottom = 10
-{{- /* M3 MBP has notch — OS reserves menubar space. M1/i9 have no notch — need extra top gap */ -}}
-{{- $topGap := 42 -}}{{- /* no-notch default: 10 gap + 32 menubar */ -}}
-{{- if eq .machine_type "work" -}}{{- $topGap = 10 -}}{{- /* notch machine: OS handles menubar */ -}}
-{{- end }}
-outer.top = {{ $topGap }}
+{{/*
+On notch machines, macOS reports the built-in display origin below the notch (safe area).
+External monitors still start at literal y=0, so they need an extra 32px to clear the menu bar.
+
+On non-notch machines, all monitors start at literal y=0.
+*/}}
+{{ $topGapTrueTop := 52 }}{{/* 10 gap + 32 menubar + 10 padding */}}
+{{ $topGapBuiltIn := $topGapTrueTop }}
+{{/* Only the work M3 Pro built-in display needs notch-safe behavior */}}
+{{ if and (eq .machine_type "work") (eq .chezmoi.hostname "elsphim-403468") }}{{ $topGapBuiltIn = 20 }}{{ end }}
+outer.top = [
+  { monitor."^built-in retina display$" = {{ $topGapBuiltIn }} },
+  {{ $topGapTrueTop }}
+]
 outer.right = 10
 
 # 'main' binding mode declaration
