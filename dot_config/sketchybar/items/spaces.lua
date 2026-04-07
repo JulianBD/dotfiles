@@ -31,6 +31,7 @@ sbar.add("event", "aerospace_workspace_change")
 
 local focused_workspace = ""
 local space_items = {}
+local multi_monitor = false
 
 local function create_items(workspaces, display_id)
   local items = {}
@@ -138,6 +139,17 @@ local function update_icons(ws)
           item:set({ icon = { string = icon_str, font = "sketchybar-app-font:Regular:14.0", padding_left = 6, padding_right = 6 } })
         end
       end
+
+      -- On single-monitor setups, only show secondary workspaces if they have windows (or are focused)
+      if not multi_monitor then
+        for _, secondary_ws in ipairs(secondary_workspaces) do
+          if secondary_ws == ws and space_items[secondary_ws] then
+            local has_windows = result and result ~= ""
+            local show = has_windows or secondary_ws == focused_workspace
+            space_items[secondary_ws]:set({ drawing = show and "on" or "off" })
+          end
+        end
+      end
     end
   )
 end
@@ -162,11 +174,25 @@ local display_handler = sbar.add("item", "display_handler", { drawing = "off" })
 local function check_displays()
   sbar.exec("aerospace list-monitors --count 2>/dev/null || echo 1", function(result)
     local count = tonumber((result or "1"):match("%d+")) or 1
-    local show = count > 1 and "on" or "off"
-    for _, ws in ipairs(secondary_workspaces) do
-      if space_items[ws] then
-        space_items[ws]:set({ drawing = show })
+    multi_monitor = count > 1
+    if multi_monitor then
+      for _, ws in ipairs(secondary_workspaces) do
+        if space_items[ws] then
+          space_items[ws]:set({ drawing = "on" })
+        end
       end
+      return
+    end
+
+    -- Single monitor: show only non-empty secondary workspaces (or focused)
+    for _, ws in ipairs(secondary_workspaces) do
+      sbar.exec("aerospace list-windows --workspace " .. ws .. " --count 2>/dev/null || echo 0", function(win_count)
+        local n = tonumber((win_count or "0"):match("%d+")) or 0
+        local show = (n > 0) or (ws == focused_workspace)
+        if space_items[ws] then
+          space_items[ws]:set({ drawing = show and "on" or "off" })
+        end
+      end)
     end
   end)
 end

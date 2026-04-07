@@ -835,6 +835,109 @@ fn zed {|palette name variant|
   echo "Generated Zed theme: "$out
 }
 
+# --- Obsidian (Baseline via Style Settings) ---
+#
+# Baseline declares Style Settings section id: baseline-style
+# Overrides are stored per-vault in:
+#   <vault>/.obsidian/plugins/obsidian-style-settings/data.json
+#
+# For now, we only target ~/Documents/sevens and we only update keys that
+# already exist in the overrides JSON (no new keys).
+
+fn obsidian-baseline-sevens {|palette &variant=dark|
+  var vault = ~/Documents/sevens
+  var appearance-path = $vault/.obsidian/appearance.json
+  var data-path = $vault/.obsidian/plugins/obsidian-style-settings/data.json
+
+  if (not (path:is-regular $appearance-path)) {
+    echo 'Obsidian: missing '$appearance-path', skipping'
+    return
+  }
+
+  var appearance = [&]
+  try {
+    set appearance = (from-json < $appearance-path)
+  } catch e {
+    echo 'Obsidian: failed to parse '$appearance-path', skipping'
+    return
+  }
+
+  if (not (has-key $appearance cssTheme)) {
+    echo 'Obsidian: no cssTheme in '$appearance-path', skipping'
+    return
+  }
+
+  if (not-eq $appearance[cssTheme] 'Baseline') {
+    echo 'Obsidian: cssTheme is '$appearance[cssTheme]' (not Baseline), skipping'
+    return
+  }
+
+  if (not (path:is-regular $data-path)) {
+    echo 'Obsidian: missing '$data-path', skipping'
+    return
+  }
+
+  var data = [&]
+  try {
+    set data = (from-json < $data-path)
+  } catch e {
+    echo 'Obsidian: failed to parse '$data-path', skipping'
+    return
+  }
+
+  # Palette-derived colors (match semantic choices used elsewhere)
+  var bg = $palette[bg-main]
+  var fg = $palette[fg-main]
+  var bg-dim    = (c $palette bg-dim (c $palette bg-shadow-subtle $bg))
+  var bg-active = (c $palette bg-active (c $palette bg-neutral $bg-dim))
+  var bg-soft   = (c $palette bg-hl-line (c $palette bg-inactive $bg-dim))
+  var fg-dim = (c $palette fg-dim (c $palette fg-neutral $fg))
+  var fg-alt = (c $palette fg-alt (c $palette fg-shadow-intense $fg))
+
+  # Baseline id -> palette color
+  var map = [&]
+  set map[background-primary] = $bg
+  # Keep sidebars closer to the editor background
+  set map[background-secondary] = $bg
+
+  # Slightly tinted surfaces (if you choose to override them)
+  set map[background-primary-alt] = $bg-soft
+  set map[code-background] = $bg-soft
+
+  # Keep hover/borders subtle (bg-active was too contrasty on light palettes)
+  set map[background-modifier-hover] = $bg-dim
+  set map[background-modifier-border] = $bg-dim
+
+  set map[icon-color] = $fg-dim
+
+  set map[text-normal] = $fg
+  set map[text-normal-editor] = $fg-dim
+  set map[text-muted] = $fg-alt
+  set map[text-faint] = $fg-dim
+
+  set map[inline-title-color] = $fg-alt
+  set map[h1-color] = $fg-alt
+  set map[h2-color] = $fg-alt
+  set map[h3-color] = $fg-alt
+  set map[h4-color] = $fg-alt
+
+  var changed = $false
+  keys $map | each {|id|
+    var k = "baseline-style@@"$id"@@"$variant
+    if (has-key $data $k) {
+      set data[$k] = $map[$id]
+      set changed = $true
+    }
+  }
+
+  if $changed {
+    put $data | to-json > $data-path
+    echo 'Obsidian: updated Baseline overrides (' $variant ') in ' $vault
+  } else {
+    echo 'Obsidian: no matching Baseline override keys to update in ' $data-path
+  }
+}
+
 # --- All ---
 
 fn all {|palette name &variant=dark|
@@ -843,5 +946,6 @@ fn all {|palette name &variant=dark|
   borders $palette
   helix $palette $name
   zed $palette $name $variant
+  obsidian-baseline-sevens $palette &variant=$variant
   wallpaper $palette
 }

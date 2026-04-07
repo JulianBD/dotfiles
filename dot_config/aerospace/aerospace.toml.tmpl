@@ -53,6 +53,29 @@ exec-on-workspace-change = ['/bin/bash', '-c',
 ]
 # on-focus-changed not needed — exec-on-workspace-change handles all workspace switches
 
+# Keep primary/secondary workspace groups anchored to monitors.
+# Without this, AeroSpace defaults to assigning all workspaces to the main monitor.
+[workspace-to-monitor-force-assignment]
+{{- /* Primary groups */}}
+A1 = 'main'
+A2 = 'main'
+A3 = 'main'
+A4 = 'main'
+B1 = 'main'
+B2 = 'main'
+B3 = 'main'
+B4 = 'main'
+
+{{- /* Secondary groups: prefer the secondary monitor when present, else fall back to main */}}
+C1 = ['secondary', 'main']
+C2 = ['secondary', 'main']
+C3 = ['secondary', 'main']
+C4 = ['secondary', 'main']
+D1 = ['secondary', 'main']
+D2 = ['secondary', 'main']
+D3 = ['secondary', 'main']
+D4 = ['secondary', 'main']
+
 
 # Possible values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping

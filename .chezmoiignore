@@ -1,5 +1,6 @@
 # Repo files — not dotfiles
 README.md
+AGENTS.md
 LICENSE
 
 # Emacs generated/state (also covered by .emacs.d/.gitignore)

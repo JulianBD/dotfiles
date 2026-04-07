@@ -95,11 +95,6 @@ On `chezmoi init`, you're prompted for values stored in `~/.config/chezmoi/chezm
 | Value | Used by | Example |
 |-------|---------|---------|
 | `machine_type` | Brewfile conditionals | `work`, `dev`, `casual` |
-| `primary_monitor` | AeroSpace workspace pinning | `1` |
-| `secondary_monitor` | AeroSpace workspace pinning | `2` |
-| `builtin_display_pattern` | AeroSpace gap override | `^built-in retina display$` |
-| `outer_top_builtin` | AeroSpace gap for built-in | `14` |
-| `outer_top_default` | AeroSpace gap default | `14` |
 | `tuna_activate_keycode` | Tuna hotkey | `49` |
 | `tuna_activate_modifiers` | Tuna hotkey | `256` |
 | `tuna_leader_keycode` | Tuna leader mode | `49` |
@@ -137,6 +132,7 @@ These run automatically during `chezmoi apply`:
 
 | Script | Trigger | What it does |
 |--------|---------|-------------|
+| `run_once_install-sbarlua.sh` | First apply only | Clones and builds SbarLua (sketchybar Lua bindings) |
 | `run_once_set-default-browser.sh` | First apply only | Sets Helium as default browser via m-cli |
 | `run_onchange_01-install-brew-packages.sh` | `~/.Brewfile` changes | `brew bundle --global` |
 | `run_onchange_02-install-mise-tools.sh` | mise `config.toml` changes | `mise install` |
@@ -146,6 +142,18 @@ These run automatically during `chezmoi apply`:
 The `run_onchange_` scripts use chezmoi's [content hash trigger](https://www.chezmoi.io/user-guide/use-scripts-to-perform-actions/#run-a-script-when-the-contents-of-another-file-changes): they include a hash comment of the watched file, so chezmoi detects when the file changes and re-runs the script.
 
 Docs: [chezmoi scripts](https://www.chezmoi.io/user-guide/use-scripts-to-perform-actions/)
+
+## Services
+
+**Sketchybar** runs as a brew service. Do not start it manually in a terminal — that ties the process to the shell session and blocks the brew service from starting ("could not initialize daemon").
+
+```bash
+brew services start sketchybar    # start (persists across reboots)
+brew services restart sketchybar  # restart after config changes
+sketchybar --reload               # reload config without restarting
+```
+
+**AeroSpace** has `after-startup-command = ['exec-and-forget sketchybar']` as a fallback, but the brew service is the primary mechanism.
 
 ## Theme system
 
