@@ -938,14 +938,328 @@ fn obsidian-baseline-sevens {|palette &variant=dark|
   }
 }
 
+# --- Obsidian Minimal: all palette color schemes ---
+#
+# Generates .obsidian/snippets/prot-schemes.css.
+# The file has two sections:
+#   1. ACTIVE block — targets .theme-light/.theme-dark directly with !important.
+#      Rewritten on every theme:apply so Obsidian hot-reloads the active colors.
+#   2. Named classes — one per palette (.theme-light.minimal-prot-ef-day etc.)
+#      for reference; never change unless you run theme:compile-obsidian-schemes.
+#
+# Enable the snippet once in Obsidian → Settings → Appearance → CSS snippets.
+# After that, theme:apply handles everything.
+
+fn -obsidian-scheme-vars {|p variant &active=$false|
+  # Emit CSS variable declarations for a palette.
+  # &active=$true uses !important and targets .theme-light/.theme-dark directly.
+  var bg        = $p[bg-main]
+  var fg        = $p[fg-main]
+  var bg-dim    = (c $p bg-dim (c $p bg-shadow-subtle $bg))
+  var bg-active = (c $p bg-active (c $p bg-neutral $bg-dim))
+  # bg-neutral added before bg-inactive so doric themes get a distinct active-item bg
+  var bg-hl     = (c $p bg-hl-line (c $p bg-neutral (c $p bg-inactive $bg-dim)))
+  # fg-shadow-subtle (doric) gives a muted themed tone; bg-mode-line-active for ef/modus/standard
+  var bg-mode   = (c $p bg-mode-line-active (c $p fg-shadow-subtle (c $p fg-neutral $bg-active)))
+  var fg-dim    = (c $p fg-dim (c $p fg-neutral $fg))
+  var fg-alt    = (c $p fg-alt (c $p fg-shadow-subtle $fg-dim))
+
+  var red     = (c $p red (c $p fg-red $fg))
+  var orange  = (c $p orange (c $p fg-orange $red))
+  var yellow  = (c $p yellow (c $p fg-yellow (c $p bg-yellow $fg)))
+  var green   = (c $p green (c $p fg-green $fg))
+  var cyan    = (c $p cyan (c $p fg-cyan (c $p fg-accent $fg)))
+  var blue    = (c $p blue (c $p fg-blue (c $p fg-accent $fg)))
+  var magenta = (c $p magenta (c $p fg-magenta $fg))
+  var pink    = (c $p magenta-warmer $magenta)
+
+  var imp = (if $active { put ' !important' } else { put '' })
+
+  var rgb = {|hex|
+    var h = (str:trim-prefix $hex '#')
+    var r = (printf '%d' '0x'$h[..2])
+    var g = (printf '%d' '0x'$h[2..4])
+    var b = (printf '%d' '0x'$h[4..6])
+    put $r','$g','$b
+  }
+
+  var hl1 = 'rgba('($rgb $blue)', 0.3)'
+  var hl2 = 'rgba('($rgb $yellow)', 0.3)'
+
+  # --- Minimal theme variables ---
+  echo '  --bg1: '$bg$imp';'
+  echo '  --bg2: '$bg-dim$imp';'
+  echo '  --bg3: '$bg-hl$imp';'
+  echo '  --ui1: '$bg-hl$imp';'
+  echo '  --ui2: '$bg-active$imp';'
+  echo '  --ui3: '$bg-mode$imp';'
+  echo '  --tx1: '$fg$imp';'
+  echo '  --tx2: '$fg-dim$imp';'
+  echo '  --tx3: '$fg-alt$imp';'
+  echo '  --hl1: '$hl1$imp';'
+  echo '  --hl2: '$hl2$imp';'
+  # --- Native Obsidian + Baseline variables ---
+  # Backgrounds
+  echo '  --background-primary: '$bg$imp';'
+  echo '  --background-secondary: '$bg-dim$imp';'
+  echo '  --background-primary-alt: '$bg-hl$imp';'
+  echo '  --background-modifier-hover: '$bg-hl$imp';'
+  echo '  --background-modifier-border: '$bg-active$imp';'
+  echo '  --background-modifier-form-field: '$bg-dim$imp';'
+  # Text
+  echo '  --text-normal: '$fg$imp';'
+  echo '  --text-muted: '$fg-dim$imp';'
+  echo '  --text-faint: '$fg-alt$imp';'
+  echo '  --text-on-accent: '$bg$imp';'
+  echo '  --text-selection: rgba('($rgb $blue)', 0.2)'$imp';'
+  # Accent — replaces Obsidian default purple everywhere
+  echo '  --color-accent: '$blue$imp';'
+  echo '  --color-accent-1: '$blue$imp';'
+  echo '  --color-accent-2: '$blue$imp';'
+  echo '  --color-accent-rgb: '($rgb $blue)$imp';'
+  echo '  --interactive-accent: '$blue$imp';'
+  echo '  --interactive-accent-hover: rgba('($rgb $blue)', 0.85)'$imp';'
+  # Interactive elements (buttons, controls)
+  echo '  --interactive-normal: '$bg-active$imp';'
+  echo '  --interactive-hover: '$bg-hl$imp';'
+  echo '  --interactive-click: '$bg-mode$imp';'
+  # Links
+  echo '  --link-color: '$blue$imp';'
+  echo '  --link-color-hover: '$blue$imp';'
+  echo '  --link-external-color: '$cyan$imp';'
+  echo '  --link-external-color-hover: '$cyan$imp';'
+  echo '  --link-unresolved-color: '$fg-alt$imp';'
+  # Named palette colors (Minimal + Baseline both use these)
+  echo '  --color-red:    '$red$imp';'
+  echo '  --color-orange: '$orange$imp';'
+  echo '  --color-yellow: '$yellow$imp';'
+  echo '  --color-green:  '$green$imp';'
+  echo '  --color-cyan:   '$cyan$imp';'
+  echo '  --color-blue:   '$blue$imp';'
+  echo '  --color-purple: '$magenta$imp';'
+  echo '  --color-pink:   '$pink$imp';'
+  echo '  --color-red-rgb:    '($rgb $red)$imp';'
+  echo '  --color-orange-rgb: '($rgb $orange)$imp';'
+  echo '  --color-yellow-rgb: '($rgb $yellow)$imp';'
+  echo '  --color-green-rgb:  '($rgb $green)$imp';'
+  echo '  --color-cyan-rgb:   '($rgb $cyan)$imp';'
+  echo '  --color-blue-rgb:   '($rgb $blue)$imp';'
+  echo '  --color-purple-rgb: '($rgb $magenta)$imp';'
+  echo '  --color-pink-rgb:   '($rgb $pink)$imp';'
+}
+
+fn obsidian-minimal-all-sevens {|db active-palette active-name &active-variant=dark|
+  var vault = ~/Documents/sevens
+  mkdir -p $vault/.obsidian/snippets
+  var out = $vault/.obsidian/snippets/prot-schemes.css
+
+  var names = [(keys $db | order)]
+  var mode-sel = (if (eq $active-variant dark) { put '.theme-dark' } else { put '.theme-light' })
+
+  {
+    echo '/* prot-schemes — auto-generated, do not edit manually */'
+    echo '/* Regenerated by theme:apply and theme:compile-obsidian-schemes */'
+    echo ''
+
+    # --- Active theme block (rewritten on every theme:apply) ---
+    echo '/* ACTIVE: '$active-name' ('$active-variant') */'
+    echo $mode-sel' {'
+    -obsidian-scheme-vars $active-palette $active-variant &active=$true
+    echo '}'
+    echo ''
+
+    # --- All named classes (for reference) ---
+    echo '/* ---- All prot schemes as named classes ---- */'
+    for name $names {
+      var entry = $db[$name]
+      var variant = $entry[variant]
+      var p = $entry[colors]
+      if (not (has-key $p bg-main)) { continue }
+      var sel = (if (eq $variant dark) { put '.theme-dark' } else { put '.theme-light' })
+      echo '/* '$name' ('$variant') */'
+      echo $sel'.minimal-prot-'$name' {'
+      -obsidian-scheme-vars $p $variant
+      echo '}'
+      echo ''
+    }
+  } >$out
+
+  echo 'Obsidian: wrote '$out' (active: '$active-name')'
+}
+
+# --- Glamour style.json ---
+
+fn glamour {|palette &variant=light|
+  var dir = ~/.config/glamour
+  mkdir -p $dir
+  var out = $dir/style.json
+
+  var fg   = $palette[fg-main]
+  var dim  = (c $palette fg-dim (c $palette fg-neutral $fg))
+  var red     = (c $palette red (c $palette fg-red $fg))
+  var green   = (c $palette green (c $palette fg-green $fg))
+  var yellow  = (c $palette yellow (c $palette fg-yellow $fg))
+  var blue    = (c $palette blue (c $palette fg-blue $fg))
+  var magenta = (c $palette magenta (c $palette fg-magenta $fg))
+  var cyan    = (c $palette cyan (c $palette fg-cyan $fg))
+
+  var blue-w    = (c $palette blue-warmer $blue)
+  var cyan-w    = (c $palette cyan-warmer $cyan)
+  var green-c   = (c $palette green-cooler $green)
+  var magenta-c = (c $palette magenta-cooler $magenta)
+  var yellow-w  = (c $palette yellow-warmer $yellow)
+
+  print '{
+  "document": {
+    "block_prefix": "\n",
+    "block_suffix": "\n",
+    "color": "'$fg'",
+    "margin": 2
+  },
+  "block_quote": {
+    "indent": 1,
+    "indent_token": "│ ",
+    "color": "'$dim'"
+  },
+  "paragraph": {},
+  "list": {
+    "color": "'$fg'",
+    "level_indent": 2
+  },
+  "heading": {
+    "block_suffix": "\n",
+    "bold": true,
+    "color": "'$blue'"
+  },
+  "h1": {
+    "prefix": "# ",
+    "bold": true
+  },
+  "h2": {
+    "prefix": "## "
+  },
+  "h3": {
+    "prefix": "### ",
+    "color": "'$cyan'"
+  },
+  "h4": {
+    "prefix": "#### "
+  },
+  "h5": {
+    "prefix": "##### "
+  },
+  "h6": {
+    "prefix": "###### ",
+    "bold": false
+  },
+  "text": {},
+  "strikethrough": {
+    "crossed_out": true
+  },
+  "emph": {
+    "italic": true
+  },
+  "strong": {
+    "bold": true
+  },
+  "hr": {
+    "color": "'$dim'",
+    "format": "\n--------\n"
+  },
+  "item": {
+    "block_prefix": "• "
+  },
+  "enumeration": {
+    "block_prefix": ". ",
+    "color": "'$blue'"
+  },
+  "task": {
+    "ticked": "[✓] ",
+    "unticked": "[ ] "
+  },
+  "link": {
+    "color": "'$cyan'",
+    "underline": true
+  },
+  "link_text": {
+    "color": "'$cyan-w'",
+    "bold": true
+  },
+  "image": {
+    "color": "'$magenta'",
+    "underline": true
+  },
+  "image_text": {
+    "color": "'$dim'",
+    "format": "Image: {{.text}} →"
+  },
+  "code": {
+    "prefix": " ",
+    "suffix": " ",
+    "color": "'$green-c'"
+  },
+  "code_block": {
+    "color": "'$fg'",
+    "margin": 2,
+    "chroma": {
+      "text":                { "color": "'$fg'" },
+      "error":               { "color": "'$red'" },
+      "comment":             { "color": "'$dim'", "italic": true },
+      "comment_preproc":     { "color": "'$cyan'" },
+      "keyword":             { "color": "'$magenta'", "bold": true },
+      "keyword_reserved":    { "color": "'$magenta-c'", "bold": true },
+      "keyword_namespace":   { "color": "'$red'" },
+      "keyword_type":        { "color": "'$cyan-w'" },
+      "operator":            { "color": "'$red'" },
+      "punctuation":         { "color": "'$dim'" },
+      "name":                {},
+      "name_builtin":        { "color": "'$blue-w'" },
+      "name_tag":            { "color": "'$magenta'" },
+      "name_attribute":      { "color": "'$cyan'" },
+      "name_class":          { "color": "'$blue'", "underline": true, "bold": true },
+      "name_constant":       { "color": "'$magenta-c'" },
+      "name_decorator":      { "color": "'$yellow'" },
+      "name_exception":      {},
+      "name_function":       { "color": "'$green'" },
+      "name_other":          {},
+      "literal":             {},
+      "literal_number":      { "color": "'$cyan'" },
+      "literal_date":        {},
+      "literal_string":      { "color": "'$yellow-w'" },
+      "literal_string_escape": { "color": "'$cyan'" },
+      "generic_deleted":     { "color": "'$red'" },
+      "generic_emph":        { "italic": true },
+      "generic_inserted":    { "color": "'$green'" },
+      "generic_strong":      { "bold": true },
+      "generic_subheading":  { "color": "'$dim'" }
+    }
+  },
+  "table": {},
+  "definition_list": {},
+  "definition_term": {},
+  "definition_description": {
+    "block_prefix": "\n→ "
+  },
+  "html_block": {},
+  "html_span": {}
+}
+' > $out
+
+  echo 'Glamour: wrote '$out
+}
+
 # --- All ---
 
-fn all {|palette name &variant=dark|
+fn all {|palette name &variant=dark &db=[&]|
   ghostty $palette $name
   sketchybar $palette
   borders $palette
   helix $palette $name
   zed $palette $name $variant
+  glamour $palette &variant=$variant
   obsidian-baseline-sevens $palette &variant=$variant
+  if (> (count $db) 0) {
+    obsidian-minimal-all-sevens $db $palette $name &active-variant=$variant
+  }
   wallpaper $palette
 }

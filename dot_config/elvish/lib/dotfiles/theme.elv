@@ -2,11 +2,12 @@
 #
 # Usage:
 #   use dotfiles/theme
-#   theme:list                # list all available themes
-#   theme:apply ef-autumn     # apply a theme to all downstream configs
-#   theme:pick                # interactive picker (native elvish)
-#   theme:current             # show current theme name
-#   theme:sync                # rebuild palette database from elpa sources
+#   theme:list                         # list all available themes
+#   theme:apply ef-autumn              # apply a theme to all downstream configs
+#   theme:pick                         # interactive picker (native elvish)
+#   theme:current                      # show current theme name
+#   theme:sync                         # rebuild palette database from elpa sources
+#   theme:compile-obsidian-schemes     # write all palette themes → prot-schemes.css
 
 use dotfiles/palette
 use dotfiles/generate
@@ -46,7 +47,8 @@ fn apply {|name|
   }
 
   # Generate all downstream configs from the palette database
-  generate:all $p $name &variant=$variant
+  var db = (palette:load-db)
+  generate:all $p $name &variant=$variant &db=$db
 
   # Record as current theme
   palette:set-current $name
@@ -80,6 +82,16 @@ fn -preview-line {|name entry|
     }
   }
   printf "%-36s %s\n" $name $swatches
+}
+
+fn compile-obsidian-schemes {
+  # Regenerate prot-schemes.css: active theme block at top + all named classes.
+  # Enable the snippet once in Obsidian → Settings → Appearance → CSS snippets.
+  # After that, theme:apply keeps the active block up to date automatically.
+  var db = (palette:load-db)
+  var name = (palette:current-name)
+  var entry = (palette:get $name)
+  generate:obsidian-minimal-all-sevens $db $entry[colors] $name &active-variant=$entry[variant]
 }
 
 fn pick {
