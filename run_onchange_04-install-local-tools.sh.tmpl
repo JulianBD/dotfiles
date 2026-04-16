@@ -45,13 +45,15 @@ mkdir -p "$INSTALLDIR"
 {{ range $name, $tool := .local_links }}
 (
   echo "── Linking {{ $name }} ──"
-  SOURCE={{ $tool.source | quote }}
+  SOURCE="{{ $tool.source | replace "~" "$HOME" }}"
+  DEST="{{ if hasKey $tool "dest" }}{{ $tool.dest | replace "~" "$HOME" }}{{ else }}$HOME/.local/bin{{ end }}"
   if [ ! -f "$SOURCE" ]; then
       echo "  SKIP: {{ $name }} source not found at $SOURCE"
       exit 0
   fi
-  ln -sf "$SOURCE" "$INSTALLDIR/{{ $name }}"
-  echo "  {{ $name }} linked to $INSTALLDIR/{{ $name }}"
+  mkdir -p "$DEST"
+  ln -sf "$SOURCE" "$DEST/{{ $name }}"
+  echo "  {{ $name }} linked to $DEST/{{ $name }}"
 )
 {{ end }}
 {{ end -}}

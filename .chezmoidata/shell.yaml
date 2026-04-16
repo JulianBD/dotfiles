@@ -11,7 +11,7 @@ shell:
     # When elvish becomes the daily driver, either switch the elvish
     # template to double-quote shell.env values or move SVNS_HOME to
     # a top-level chezmoi data var.
-    SVNS_HOME: "$HOME/tools/svns"
+    SVNS_HOME: "$HOME/.config/svns"
 
   aliases:
     - cmd: cat
