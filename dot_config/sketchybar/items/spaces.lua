@@ -3,8 +3,13 @@ local colors = require("colors")
 local icons = require("icons")
 
 -- Workspace groups: primary monitor (display 1) and secondary (display 2)
+-- On single monitor, C workspaces move to display 1; D workspaces stay hidden.
 local primary_workspaces = { "A1","A2","A3","A4","B1","B2","B3","B4" }
-local secondary_workspaces = { "C1","C2","C3","C4","D1","D2","D3","D4" }
+local c_workspaces = { "C1","C2","C3","C4" }
+local d_workspaces = { "D1","D2","D3","D4" }
+local secondary_workspaces = {}
+for _, ws in ipairs(c_workspaces) do table.insert(secondary_workspaces, ws) end
+for _, ws in ipairs(d_workspaces) do table.insert(secondary_workspaces, ws) end
 local all_workspaces = {}
 for _, ws in ipairs(primary_workspaces) do table.insert(all_workspaces, ws) end
 for _, ws in ipairs(secondary_workspaces) do table.insert(all_workspaces, ws) end
@@ -140,13 +145,13 @@ local function update_icons(ws)
         end
       end
 
-      -- On single-monitor setups, only show secondary workspaces if they have windows (or are focused)
+      -- On single-monitor setups, show C workspaces only if they have windows (or are focused); D stays hidden
       if not multi_monitor then
-        for _, secondary_ws in ipairs(secondary_workspaces) do
-          if secondary_ws == ws and space_items[secondary_ws] then
+        for _, cws in ipairs(c_workspaces) do
+          if cws == ws and space_items[cws] then
             local has_windows = result and result ~= ""
-            local show = has_windows or secondary_ws == focused_workspace
-            space_items[secondary_ws]:set({ drawing = show and "on" or "off" })
+            local show = has_windows or cws == focused_workspace
+            space_items[cws]:set({ drawing = show and "on" or "off" })
           end
         end
       end
@@ -176,23 +181,32 @@ local function check_displays()
     local count = tonumber((result or "1"):match("%d+")) or 1
     multi_monitor = count > 1
     if multi_monitor then
+      -- Dual monitor: C and D on display 2, all visible
       for _, ws in ipairs(secondary_workspaces) do
         if space_items[ws] then
-          space_items[ws]:set({ drawing = "on" })
+          space_items[ws]:set({ display = 2, drawing = "on" })
         end
       end
       return
     end
 
-    -- Single monitor: show only non-empty secondary workspaces (or focused)
-    for _, ws in ipairs(secondary_workspaces) do
-      sbar.exec("aerospace list-windows --workspace " .. ws .. " --count 2>/dev/null || echo 0", function(win_count)
-        local n = tonumber((win_count or "0"):match("%d+")) or 0
-        local show = (n > 0) or (ws == focused_workspace)
-        if space_items[ws] then
+    -- Single monitor: C workspaces move to display 1, show if non-empty or focused
+    for _, ws in ipairs(c_workspaces) do
+      if space_items[ws] then
+        space_items[ws]:set({ display = 1 })
+        sbar.exec("aerospace list-windows --workspace " .. ws .. " --count 2>/dev/null || echo 0", function(win_count)
+          local n = tonumber((win_count or "0"):match("%d+")) or 0
+          local show = (n > 0) or (ws == focused_workspace)
           space_items[ws]:set({ drawing = show and "on" or "off" })
-        end
-      end)
+        end)
+      end
+    end
+
+    -- Single monitor: D workspaces hidden
+    for _, ws in ipairs(d_workspaces) do
+      if space_items[ws] then
+        space_items[ws]:set({ drawing = "off" })
+      end
     end
   end)
 end
