@@ -40,6 +40,23 @@ mkdir -p "$INSTALLDIR"
 {{ end }}
 {{ end -}}
 
+{{ if hasKey . "cloned_repos" -}}
+# ── Cloned repos ──
+{{ range $name, $tool := .cloned_repos }}
+(
+  echo "── Cloning {{ $name }} ──"
+  DEST="{{ $tool.dest | replace "~" "$HOME" }}"
+  if [ -d "$DEST" ]; then
+      echo "  {{ $name }} already exists at $DEST"
+      exit 0
+  fi
+  mkdir -p "$(dirname "$DEST")"
+  git clone {{ $tool.repo | quote }} "$DEST"
+  echo "  {{ $name }} cloned to $DEST"
+)
+{{ end }}
+{{ end -}}
+
 {{ if hasKey . "local_links" -}}
 # ── Local symlinks ──
 {{ range $name, $tool := .local_links }}
