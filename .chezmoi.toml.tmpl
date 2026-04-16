@@ -7,8 +7,12 @@
 {{- $tunaLeaderKeyCode := promptStringOnce . "tuna_leader_keycode" "Tuna leader carbonKeyCode (e.g., 49)" -}}
 {{- $tunaLeaderModifiers := promptStringOnce . "tuna_leader_modifiers" "Tuna leader carbonModifiers (e.g., 4096)" -}}
 
-{{/* Work environment */}}
-{{- $certPath := promptStringOnce . "cert_path" "CA bundle path (e.g., ~/certs/zscaler-bundle.pem, or blank)" -}}
+{{/* Work environment — cert bundle lives at a fixed path under .config, */}}
+{{/* built by `dotfiles:certs:rebuild`. Only populated on work machines.   */}}
+{{- $certPath := "" -}}
+{{- if eq $machineType "work" -}}
+{{-   $certPath = joinPath .chezmoi.homeDir ".config/certs/bundle.pem" -}}
+{{- end -}}
 
 {{/* Secrets — stored in chezmoi.toml (gitignored), never committed */}}
 {{- $jiraApiToken := promptStringOnce . "jira_api_token" "JIRA API token (leave blank if none)" -}}

@@ -55,5 +55,12 @@ Library/Application Support/Tuna/PlugIns
 Library/Application Support/Tuna/PlugInsDev
 Library/Application Support/Tuna/ProxyHistory.plist
 
+# Work-only: Zscaler root cert and generated bundle
+{{ if ne .machine_type "work" -}}
+.config/certs
+{{ end -}}
+# Generated bundle is never tracked (built by `dotfiles:certs:rebuild`)
+.config/certs/bundle.pem
+
 # OS junk
 .DS_Store

@@ -66,72 +66,37 @@ fn sync {
     }
   }
 
-  # ef-themes: each theme is its own file
-  try {
-    for f [$repo-dir/ef-themes/*-theme.el] {
-      if (path:is-regular $f) {
-        try {
-          var parsed = ($bb $bb-script $f | from-json)
-          set themes[$parsed[name]] = [&variant=$parsed[variant] &colors=$parsed[colors]]
-        } catch e {
-          echo "Warning: failed to parse "$f >&2
-        }
-      }
-    }
-  } catch e {
-    echo "No ef-themes found" >&2
-  }
-
-  # modus-themes: palettes live in modus-themes.el
-  try {
-    for f [$repo-dir/modus-themes/modus-themes.el] {
-      if (path:is-regular $f) {
-        for name [modus-operandi modus-operandi-tinted modus-operandi-deuteranopia modus-operandi-tritanopia modus-vivendi modus-vivendi-tinted modus-vivendi-deuteranopia modus-vivendi-tritanopia] {
+  # ef/doric/standard-themes: one theme per *-theme.el file
+  for repo [ef-themes doric-themes standard-themes] {
+    try {
+      for f [$repo-dir/$repo/*-theme.el] {
+        if (path:is-regular $f) {
           try {
-            var parsed = ($bb $bb-script $f $name | from-json)
-            if (> (count $parsed[colors]) 0) {
-              set themes[$parsed[name]] = [&variant=$parsed[variant] &colors=$parsed[colors]]
-            }
+            var parsed = ($bb $bb-script $f | from-json)
+            set themes[$parsed[name]] = [&variant=$parsed[variant] &colors=$parsed[colors]]
           } catch e {
-            # Some variants may not exist in this version
+            echo "Warning: failed to parse "$f >&2
           }
         }
       }
+    } catch e {
+      echo "No "$repo" found" >&2
     }
-  } catch e {
-    echo "No modus-themes found" >&2
   }
 
-  # doric-themes: each theme is its own file
-  try {
-    for f [$repo-dir/doric-themes/*-theme.el] {
-      if (path:is-regular $f) {
-        try {
-          var parsed = ($bb $bb-script $f | from-json)
+  # modus-themes: all palettes live in one file, one entry per known name
+  var modus-file = $repo-dir/modus-themes/modus-themes.el
+  if (path:is-regular $modus-file) {
+    for name [modus-operandi modus-operandi-tinted modus-operandi-deuteranopia modus-operandi-tritanopia modus-vivendi modus-vivendi-tinted modus-vivendi-deuteranopia modus-vivendi-tritanopia] {
+      try {
+        var parsed = ($bb $bb-script $modus-file $name | from-json)
+        if (> (count $parsed[colors]) 0) {
           set themes[$parsed[name]] = [&variant=$parsed[variant] &colors=$parsed[colors]]
-        } catch e {
-          echo "Warning: failed to parse "$f >&2
         }
+      } catch e {
+        # Some variants may not exist in this version
       }
     }
-  } catch e {
-    echo "No doric-themes found" >&2
-  }
-
-  # standard-themes: each theme is its own file
-  try {
-    for f [$repo-dir/standard-themes/*-theme.el] {
-      if (path:is-regular $f) {
-        try {
-          var parsed = ($bb $bb-script $f | from-json)
-          set themes[$parsed[name]] = [&variant=$parsed[variant] &colors=$parsed[colors]]
-        } catch e {
-          echo "Warning: failed to parse "$f >&2
-        }
-      }
-    }
-  } catch e {
-    echo "No standard-themes found" >&2
   }
 
   # Write database

@@ -1,0 +1,24 @@
+#!/bin/bash
+# Build SbarLua against the currently-active Lua version.
+#
+# The Lua version below is baked in at template-render time. When mise
+# upgrades Lua, this comment changes, chezmoi detects the change, and the
+# script re-runs to rebuild sketchybar.so against the new ABI. Without this,
+# upgrading Lua silently segfaults sketchybar's rc on `require("sketchybar")`
+# and you get an empty bar at the top of the screen.
+#
+# Lua version: {{ output "mise" "current" "lua" | trim }}
+set -euo pipefail
+
+echo "Building SbarLua against lua {{ output "mise" "current" "lua" | trim }}..."
+rm -rf /tmp/SbarLua ~/.local/share/sketchybar_lua
+git clone --quiet https://github.com/FelixKratz/SbarLua.git /tmp/SbarLua
+cd /tmp/SbarLua
+make install
+rm -rf /tmp/SbarLua
+
+# Restart sketchybar so the new .so is loaded.
+if command -v brew >/dev/null 2>&1 && brew services list 2>/dev/null | grep -q '^sketchybar'; then
+  brew services restart sketchybar >/dev/null 2>&1 || true
+fi
+echo "SbarLua rebuilt"

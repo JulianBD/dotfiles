@@ -2,57 +2,81 @@ if status is-interactive
     # Commands to run in interactive sessions can go here
 end
 
-# aws-kubectl interactive params
-set -gx IGNORE_AUTH_TEST true
-set -gx IGNORE_HOST_CONF true
-alias eks-control-worker "~/working/tio-hm-ce-eks-control-worker/start-console.sh"
+# --- Homebrew ---
 {{ if eq .chezmoi.arch "arm64" -}}
 /opt/homebrew/bin/brew shellenv | source
 {{ else -}}
 /usr/local/bin/brew shellenv | source
 {{ end -}}
+
+# --- mise ---
 mise activate fish | source
-# fish_add_path "/Users/dorseyj/.bun/bin"
-fish_add_path "$HOME/bin"
-fish_add_path "$HOME/.ghcup/bin"
-fish_add_path "$HOME/.cabal/bin"
-fish_add_path "/opt/homebrew/Caskroom/sqlcl/25.3.1.311.1257/sqlcl/bin"
+
+# --- Environment (from .chezmoidata/shell.yaml) ---
+{{ range $k, $v := .shell.env -}}
+set -gx {{ $k }} {{ $v | quote }}
+{{ end -}}
 
 {{ if .jira_api_token -}}
 set -gx JIRA_API_TOKEN {{ .jira_api_token | quote }}
 {{ end -}}
 
-# Set tfenv to use amd rather than arm architecture (was default for non M1 macs)
-set -gx TFENV_ARCH amd64
-set -gx GODEBUG asyncpreemptoff=1
-
 {{ if .cert_path -}}
-set -gx SSL_CERT_FILE {{ .cert_path }}
-set -gx NODE_EXTRA_CA_CERTS {{ .cert_path }}
-set -gx REQUESTS_CA_BUNDLE {{ .cert_path }}
-set -gx AWS_CA_BUNDLE {{ .cert_path }}
+set -gx SSL_CERT_FILE {{ .cert_path | quote }}
+set -gx NODE_EXTRA_CA_CERTS {{ .cert_path | quote }}
+set -gx REQUESTS_CA_BUNDLE {{ .cert_path | quote }}
+set -gx AWS_CA_BUNDLE {{ .cert_path | quote }}
+# JVM: zscaler is injected directly into the JDK's cacerts by
+# run_onchange_rebuild-jvm-truststore.sh, so no JAVA_TOOL_OPTIONS needed.
 {{ end -}}
 
+# --- PATH (from .chezmoidata/shell.yaml) ---
+{{ range .shell.paths_home -}}
+fish_add_path "$HOME/{{ . }}"
+{{ end -}}
+{{ range .shell.paths_absolute -}}
+fish_add_path "{{ . }}"
+{{ end }}
+
+# --- Aliases (from .chezmoidata/shell.yaml) ---
+{{ range .shell.aliases -}}
+{{ $req := index . "requires" -}}
+{{ if $req -}}
+if type -q {{ $req }}
+    alias {{ .cmd }} {{ .expand | quote }}
+end
+{{ else -}}
+alias {{ .cmd }} {{ .expand | quote }}
+{{ end -}}
+{{ end }}
+
+# --- Fish-specific aliases (bass requires fish) ---
 alias tf "bass scripts/iterraform.sh"
-alias cat "bat --style=plain --paging=never"
-alias find fd
-alias j just
-alias vim nvim
 alias copilot "env SHELL=/opt/homebrew/bin/bash copilot"
+alias eks-control-worker "~/working/tio-hm-ce-eks-control-worker/start-console.sh"
 
-zoxide init fish | source
-# starship init fish | source
+# --- Zoxide ---
+if type -q zoxide
+    zoxide init fish | source
+end
 
-# argc-completions
-set -gx ARGC_COMPLETIONS_ROOT "/Users/dorseyj/.config/argc-completions"
+# --- Starship prompt ---
+if type -q starship
+    starship init fish | source
+end
+
+# --- argc-completions ---
+set -gx ARGC_COMPLETIONS_ROOT "$HOME/.config/argc-completions"
 set -gx ARGC_COMPLETIONS_PATH "$ARGC_COMPLETIONS_ROOT/completions/macos:$ARGC_COMPLETIONS_ROOT/completions"
-fish_add_path "$ARGC_COMPLETIONS_ROOT/bin"
-# To add completions for only the specified command, modify next line e.g. set argc_scripts cargo git
-set argc_scripts (ls -p -1 "$ARGC_COMPLETIONS_ROOT/completions/macos" "$ARGC_COMPLETIONS_ROOT/completions" | sed -n 's/\.sh$//p')
-argc --argc-completions fish $argc_scripts | source
+if test -d "$ARGC_COMPLETIONS_ROOT"
+    set argc_scripts (ls -p -1 "$ARGC_COMPLETIONS_ROOT/completions/macos" "$ARGC_COMPLETIONS_ROOT/completions" 2>/dev/null | sed -n 's/\.sh$//p')
+    if type -q argc
+        argc --argc-completions fish $argc_scripts | source
+    end
+end
 
-alias ls eza
 fish_vi_key_bindings
+
 # Added by LM Studio CLI (lms)
-set -gx PATH $PATH /Users/dorseyj/.lmstudio/bin
+set -gx PATH $PATH $HOME/.lmstudio/bin
 # End of LM Studio CLI section

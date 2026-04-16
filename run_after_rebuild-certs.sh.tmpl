@@ -1,0 +1,25 @@
+#!/bin/sh
+# Rebuild the work CA bundle after chezmoi apply.
+# Runs only on work machines. No-op if the root cert is missing
+# (e.g., before the user has copied it into place).
+{{ if eq .machine_type "work" -}}
+set -eu
+
+ROOT_CERT="{{ .chezmoi.homeDir }}/.config/certs/ZscalerRootCertificate-2048-SHA256.crt"
+BUNDLE="{{ .chezmoi.homeDir }}/.config/certs/bundle.pem"
+
+if [ ! -f "$ROOT_CERT" ]; then
+  echo "certs: root cert not at $ROOT_CERT; skipping bundle rebuild"
+  exit 0
+fi
+
+if ! command -v elvish >/dev/null 2>&1; then
+  echo "certs: elvish not installed; skipping bundle rebuild"
+  exit 0
+fi
+
+elvish -c 'use dotfiles/certs; certs:rebuild'
+{{ else -}}
+# Non-work machine: nothing to do.
+exit 0
+{{ end -}}

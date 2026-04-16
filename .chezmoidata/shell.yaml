@@ -1,0 +1,47 @@
+shell:
+  env:
+    IGNORE_AUTH_TEST: "true"
+    IGNORE_HOST_CONF: "true"
+    TFENV_ARCH: "amd64"
+    GODEBUG: "asyncpreemptoff=1"
+    # NOTE: shell.env values are NOT template-rendered, so we use
+    # $HOME and let the shell expand it at startup. This works in
+    # zsh/fish (double-quoted set/export) but not in elvish's
+    # rc.elv.tmpl, which currently single-quotes shell.env values.
+    # When elvish becomes the daily driver, either switch the elvish
+    # template to double-quote shell.env values or move SVNS_HOME to
+    # a top-level chezmoi data var.
+    SVNS_HOME: "$HOME/tools/svns"
+
+  aliases:
+    - cmd: cat
+      expand: "bat --style=plain --paging=never"
+      requires: bat
+    - cmd: ls
+      expand: "eza"
+      requires: eza
+    - cmd: lt
+      expand: "eza --tree --level=2 --long --icons --git"
+      requires: eza
+    - cmd: find
+      expand: "fd"
+      requires: fd
+    - cmd: vim
+      expand: "nvim"
+      requires: nvim
+    - cmd: j
+      expand: "just"
+    - cmd: svns
+      expand: "hell $SVNS_HOME/svns.hs"
+      requires: hell
+
+  # PATH entries relative to $HOME, prepended in order.
+  paths_home:
+    - bin
+    - .ghcup/bin
+    - .cabal/bin
+    - .config/argc-completions/bin
+
+  # Absolute PATH entries, prepended in order.
+  paths_absolute:
+    - /opt/homebrew/Caskroom/sqlcl/25.3.1.311.1257/sqlcl/bin

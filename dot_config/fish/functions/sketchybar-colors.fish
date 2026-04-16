@@ -92,8 +92,8 @@ export BATTERY_COLOR_CHARGING=0xff%s
 
     echo "Generated $config from ghostty theme"
 
-    killall sketchybar 2>/dev/null
-    sleep 0.5
-    sketchybar &
-    disown
+    # SbarLua: `sketchybar --reload` doesn't clear old items; use brew services.
+    if type -q brew
+        brew services restart sketchybar >/dev/null 2>&1
+    end
 end

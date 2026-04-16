@@ -1,0 +1,67 @@
+# starship.toml — Pure-inspired prompt with λ symbol
+# Managed by chezmoi. Used by fish, elvish, and zsh.
+
+add_newline = true
+
+format = """
+$directory\
+$git_branch\
+$git_state\
+$git_status\
+$cmd_duration\
+$line_break\
+$character"""
+
+[character]
+success_symbol = "[λ](bold purple)"
+error_symbol = "[λ](bold red)"
+vimcmd_symbol = "[λ](bold green)"
+
+[directory]
+style = "bold cyan"
+truncation_length = 4
+truncate_to_repo = false
+format = "[$path]($style) "
+
+[git_branch]
+format = "[$branch]($style) "
+style = "bright-black"
+
+[git_state]
+format = "[\\($state( $progress_current/$progress_total)\\)]($style) "
+style = "bright-yellow"
+
+[git_status]
+format = "[$all_status$ahead_behind]($style) "
+style = "bright-black"
+conflicted = "="
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?"
+stashed = "$"
+modified = "!"
+staged = "+"
+renamed = "»"
+deleted = "✘"
+
+[cmd_duration]
+min_time = 2000
+format = "[${duration}]($style) "
+style = "yellow"
+
+# Disable segments pure doesn't show
+[package]
+disabled = true
+
+[nodejs]
+disabled = true
+
+[python]
+disabled = true
+
+[rust]
+disabled = true
+
+[golang]
+disabled = true

@@ -50,6 +50,17 @@ kubectx = "latest"
 kubens = "latest"
 typst = "latest"
 "cargo:alecthomas/t" = "latest"
+choose = "latest"
+claude = "latest"
+codex = "latest"
+delta = "latest"
+eza = "latest"
+fd = "latest"
+fzf = "latest"
+go-jsonnet = "latest"
+neovim = "latest"
+watchexec = "latest"
+yarn = "latest"
 
 [settings]
 idiomatic_version_file_enable_tools = ["terraform"]

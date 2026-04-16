@@ -1,6 +1,8 @@
 # interactive.elv — Editor config, aliases, keybindings, completions
 # Loaded via eval from rc.elv (edit: namespace requires a separate compilation unit).
+# Generated from interactive.elv.tmpl by chezmoi.
 
+use str
 use readline-binding
 
 # --- Packages that touch edit: ---
@@ -15,26 +17,16 @@ use github.com/xiaq/edit.elv/smart-matcher
 # Smart completion: prefix → substring → subsequence, with smart-case
 smart-matcher:apply
 
-# --- Aliases ---
+# --- Aliases (from .chezmoidata/shell.yaml) ---
 
-if (has-external bat) {
-  alias:new cat bat --style=plain --paging=never
-}
-
-if (has-external eza) {
-  alias:new ls eza
-  alias:new lt eza --tree --level=2 --long --icons --git
-}
-
-if (has-external fd) {
-  alias:new find fd
-}
-
-if (has-external nvim) {
-  alias:new vim nvim
-}
-
-alias:new j just
+{{ range .shell.aliases -}}
+{{ $req := index . "requires" -}}
+{{ if $req -}}
+if (has-external {{ $req }}) { alias:new {{ .cmd }} {{ .expand }} }
+{{ else -}}
+alias:new {{ .cmd }} {{ .expand }}
+{{ end -}}
+{{ end }}
 
 # --- Directory navigation (Alt-b / Alt-f / Alt-i) ---
 
@@ -56,7 +48,6 @@ if (has-external fzf) {
         slurp
       )
     } catch e { }
-    use str
     set cmd = (str:trim-space $cmd)
     if (not-eq $cmd "") {
       edit:replace-input $cmd

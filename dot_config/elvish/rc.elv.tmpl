@@ -1,53 +1,65 @@
 # rc.elv — Interactive elvish configuration
 # Managed by chezmoi
 
-# --- Environment & PATH ---
+use os
 
+# --- Homebrew ---
 {{ if eq .chezmoi.arch "arm64" -}}
 set paths = [/opt/homebrew/bin /opt/homebrew/sbin $@paths]
 {{ else -}}
 set paths = [/usr/local/bin /usr/local/sbin $@paths]
 {{ end -}}
 
-# Use --shims mode: mise's hook-based activation has an elvish
-# compatibility issue (edit:before-readline in non-interactive eval).
-# Shims mode just prepends the shims directory to PATH.
+# mise: --shims mode works around an elvish compat issue in hook-based activation.
 eval (mise activate elvish --shims | slurp)
 
-set paths = [$E:HOME/bin $E:HOME/.ghcup/bin $E:HOME/.cabal/bin $@paths]
+# --- PATH (from .chezmoidata/shell.yaml) ---
+set paths = [
+{{- range .shell.paths_home }}
+  $E:HOME'/{{ . }}'
+{{- end }}
+{{- range .shell.paths_absolute }}
+  '{{ . }}'
+{{- end }}
+  $@paths
+]
 
-set-env TFENV_ARCH amd64
-set-env GODEBUG asyncpreemptoff=1
-set-env IGNORE_AUTH_TEST true
-set-env IGNORE_HOST_CONF true
+# --- Environment (from .chezmoidata/shell.yaml) ---
+{{ range $k, $v := .shell.env -}}
+set-env {{ $k }} '{{ $v }}'
+{{ end -}}
 
 {{ if .jira_api_token -}}
 set-env JIRA_API_TOKEN {{ .jira_api_token | squote }}
 {{ end -}}
 
 {{ if .cert_path -}}
-set-env SSL_CERT_FILE {{ .cert_path }}
-set-env NODE_EXTRA_CA_CERTS {{ .cert_path }}
-set-env REQUESTS_CA_BUNDLE {{ .cert_path }}
-set-env AWS_CA_BUNDLE {{ .cert_path }}
+set-env SSL_CERT_FILE '{{ .cert_path }}'
+set-env NODE_EXTRA_CA_CERTS '{{ .cert_path }}'
+set-env REQUESTS_CA_BUNDLE '{{ .cert_path }}'
+set-env AWS_CA_BUNDLE '{{ .cert_path }}'
+# JVM: zscaler is injected directly into the JDK's cacerts by
+# run_onchange_rebuild-jvm-truststore.sh, so no JAVA_TOOL_OPTIONS needed.
 {{ end -}}
 
-# --- Packages ---
-
+# --- Packages (epm) ---
+# Only install on first run; the marker file keeps subsequent startups fast.
 use epm
-epm:install &silent-if-installed ^
-  github.com/zzamboni/elvish-modules ^
-  github.com/xiaq/edit.elv ^
-  github.com/crinklywrappr/rivendell
+var epm-marker = $E:HOME'/.config/elvish/.epm-installed'
+if (not (os:exists $epm-marker)) {
+  epm:install &silent-if-installed ^
+    github.com/zzamboni/elvish-modules ^
+    github.com/xiaq/edit.elv ^
+    github.com/crinklywrappr/rivendell
+  echo "" > $epm-marker
+}
 
 # --- Prompt (Starship) ---
-
 if (has-external starship) {
   eval (starship init elvish --print-full-init | slurp)
 }
 
 # --- Navigation (Zoxide) ---
-
 if (has-external zoxide) {
   eval (zoxide init elvish | slurp)
 }
@@ -55,9 +67,7 @@ if (has-external zoxide) {
 # --- Interactive editor setup ---
 # edit: namespace is only available at runtime, not compile time,
 # so all edit: references must live inside eval (separate compilation unit).
-
 eval (slurp < ~/.config/elvish/interactive.elv)
 
 # --- Dotfiles theme system ---
-
 use dotfiles

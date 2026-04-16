@@ -1,0 +1,72 @@
+# .zshrc — Managed by chezmoi
+# Used as the default shell for LLM agents; stays in sync with fish/elvish
+# via .chezmoidata/shell.yaml.
+
+# --- Homebrew ---
+{{ if eq .chezmoi.arch "arm64" -}}
+eval "$(/opt/homebrew/bin/brew shellenv)"
+{{ else -}}
+eval "$(/usr/local/bin/brew shellenv)"
+{{ end -}}
+
+# --- mise ---
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
+
+# --- Environment (from .chezmoidata/shell.yaml) ---
+{{ range $k, $v := .shell.env -}}
+export {{ $k }}={{ $v | quote }}
+{{ end -}}
+
+{{ if .jira_api_token -}}
+export JIRA_API_TOKEN={{ .jira_api_token | quote }}
+{{ end -}}
+
+{{ if .cert_path -}}
+export SSL_CERT_FILE={{ .cert_path | quote }}
+export NODE_EXTRA_CA_CERTS={{ .cert_path | quote }}
+export REQUESTS_CA_BUNDLE={{ .cert_path | quote }}
+export AWS_CA_BUNDLE={{ .cert_path | quote }}
+# JVM: zscaler is injected directly into the JDK's cacerts by
+# run_onchange_rebuild-jvm-truststore.sh, so no JAVA_TOOL_OPTIONS needed.
+{{ end -}}
+
+# --- PATH (from .chezmoidata/shell.yaml) ---
+{{ range .shell.paths_home -}}
+path=("$HOME/{{ . }}" $path)
+{{ end -}}
+{{ range .shell.paths_absolute -}}
+path=("{{ . }}" $path)
+{{ end -}}
+typeset -U path PATH
+export PATH
+
+# --- Aliases (from .chezmoidata/shell.yaml) ---
+{{ range .shell.aliases -}}
+{{ $req := index . "requires" -}}
+{{ if $req -}}
+command -v {{ $req }} >/dev/null 2>&1 && alias {{ .cmd }}={{ .expand | quote }}
+{{ else -}}
+alias {{ .cmd }}={{ .expand | quote }}
+{{ end -}}
+{{ end }}
+
+# --- Zoxide ---
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
+
+# --- Starship prompt ---
+if command -v starship >/dev/null 2>&1; then
+  eval "$(starship init zsh)"
+fi
+
+# --- History ---
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=10000
+SAVEHIST=10000
+setopt SHARE_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_SPACE INC_APPEND_HISTORY
+
+# --- Completion ---
+autoload -Uz compinit && compinit

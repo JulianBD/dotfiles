@@ -1,0 +1,35 @@
+#!/bin/bash
+# Inject the Zscaler root into the active mise-installed JDK's cacerts.
+#
+# mise gives each Java version its own lib/security/cacerts. When Java
+# upgrades, the bundled cacerts is fresh and lacks the Zscaler root, so
+# TLS to internal services breaks silently (curl works via SSL_CERT_FILE,
+# but the JVM ignores that env var — it uses its own cacerts store).
+#
+# The active Java version below is baked in at template-render time. Any
+# change (mise upgrade / mise use java@X) re-triggers this script.
+#
+# Java version: {{ output "mise" "current" "java" | trim }}
+{{ if eq .machine_type "work" -}}
+set -euo pipefail
+
+ROOT_CERT="{{ .chezmoi.homeDir }}/.config/certs/ZscalerRootCertificate-2048-SHA256.crt"
+if [ ! -f "$ROOT_CERT" ]; then
+  echo "jdk-cacerts: root cert not at $ROOT_CERT; skipping"
+  exit 0
+fi
+
+if ! command -v elvish >/dev/null 2>&1; then
+  echo "jdk-cacerts: elvish not installed; skipping"
+  exit 0
+fi
+
+if ! command -v mise >/dev/null 2>&1 || ! mise where java >/dev/null 2>&1; then
+  echo "jdk-cacerts: no Java managed by mise; skipping"
+  exit 0
+fi
+
+elvish -c 'use dotfiles/certs; certs:inject-zscaler-into-jdk'
+{{ else -}}
+exit 0
+{{ end -}}

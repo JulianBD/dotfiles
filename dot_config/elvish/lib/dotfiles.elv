@@ -8,3 +8,4 @@
 use dotfiles/theme
 use dotfiles/palette
 use dotfiles/generate
+use dotfiles/certs
