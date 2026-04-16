@@ -8,7 +8,9 @@ eval "$(mise activate bash)"
 # Bootstrap Haskell toolchain via ghcup (recommended versions)
 # ghci is bundled with ghc, not a separate component
 ghcup install ghc
+ghcup set ghc
 ghcup install cabal
+ghcup set cabal
 ghcup install stack
 ghcup install hls
 
