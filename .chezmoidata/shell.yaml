@@ -37,6 +37,7 @@ shell:
 
   # PATH entries relative to $HOME, prepended in order.
   paths_home:
+    - .local/bin
     - bin
     - .ghcup/bin
     - .cabal/bin

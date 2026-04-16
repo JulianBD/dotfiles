@@ -1,0 +1,51 @@
+#!/bin/bash
+# local_tools hash: {{ include ".chezmoidata/local_tools.toml" | sha256sum }}
+set -euo pipefail
+
+eval "$({{ .brew_prefix }}/bin/brew shellenv)"
+
+export PATH="$HOME/.ghcup/bin:$HOME/.cabal/bin:$PATH"
+export INSTALLDIR="$HOME/.local/bin"
+
+mkdir -p "$INSTALLDIR"
+
+{{ if hasKey . "source_builds" -}}
+# ── Source builds ──
+{{ range $name, $tool := .source_builds }}
+(
+  echo "── Building {{ $name }} ──"
+  {{ if $tool.needs -}}
+  {{ range $tool.needs -}}
+  if ! command -v {{ . }} &>/dev/null; then
+      echo "  SKIP: {{ $name }} requires {{ . }} but it's not on PATH"
+      exit 0
+  fi
+  {{ end -}}
+  {{ end -}}
+  WORKDIR=$(mktemp -d)
+  trap 'rm -rf "$WORKDIR"' EXIT
+  git clone {{ $tool.repo | quote }} "$WORKDIR"
+  cd "$WORKDIR"
+  {{ $tool.build }}
+  echo "  {{ $name }} installed to $INSTALLDIR"
+)
+{{ end }}
+{{ end -}}
+
+{{ if hasKey . "local_links" -}}
+# ── Local symlinks ──
+{{ range $name, $tool := .local_links }}
+(
+  echo "── Linking {{ $name }} ──"
+  SOURCE={{ $tool.source | quote }}
+  if [ ! -f "$SOURCE" ]; then
+      echo "  SKIP: {{ $name }} source not found at $SOURCE"
+      exit 0
+  fi
+  ln -sf "$SOURCE" "$INSTALLDIR/{{ $name }}"
+  echo "  {{ $name }} linked to $INSTALLDIR/{{ $name }}"
+)
+{{ end }}
+{{ end -}}
+
+echo "Local tools done."

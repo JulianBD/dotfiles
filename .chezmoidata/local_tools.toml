@@ -1,0 +1,17 @@
+# Tools installed to ~/.local/bin
+# Two types:
+#   [source_builds.<name>]  — clone a repo, run a build command
+#   [local_links.<name>]    — symlink a local binary
+#
+# source_builds fields:
+#   repo      — git URL to clone
+#   build     — shell command to build (run from repo root, $INSTALLDIR is ~/.local/bin)
+#   needs     — list of commands that must be on PATH (optional)
+#
+# local_links fields:
+#   source    — absolute path to the binary (supports chezmoi templates)
+
+[source_builds.hell]
+repo = "https://github.com/chrisdone/hell.git"
+build = "cabal install --install-method=copy --installdir=$INSTALLDIR"
+needs = ["cabal"]
