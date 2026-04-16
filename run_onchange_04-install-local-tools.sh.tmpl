@@ -3,6 +3,14 @@
 set -euo pipefail
 
 eval "$({{ .brew_prefix }}/bin/brew shellenv)"
+eval "$(mise activate bash)"
+
+# Bootstrap Haskell toolchain via ghcup (recommended versions)
+# ghci is bundled with ghc, not a separate component
+ghcup install ghc
+ghcup install cabal
+ghcup install stack
+ghcup install hls
 
 export PATH="$HOME/.ghcup/bin:$HOME/.cabal/bin:$PATH"
 export INSTALLDIR="$HOME/.local/bin"
