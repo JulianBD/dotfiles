@@ -19,8 +19,13 @@ fi
 export {{ $k }}={{ $v | quote }}
 {{ end -}}
 
-{{ if .jira_api_token -}}
-export JIRA_API_TOKEN={{ .jira_api_token | quote }}
+# --- Secrets (from gopass) ---
+export ANTHROPIC_API_KEY={{ gopass "chezmoi/anthropic-api-key" | quote }}
+export OPENAI_API_KEY={{ gopass "chezmoi/openai-api-key" | quote }}
+export GITHUB_TOKEN={{ gopass "chezmoi/github-token" | quote }}
+{{ if eq .machine_type "work" -}}
+export JIRA_API_TOKEN={{ gopass "chezmoi/jira-api-token" | quote }}
+export ATLASSIAN_API_TOKEN={{ gopass "chezmoi/atlassian-token" | quote }}
 {{ end -}}
 
 {{ if .cert_path -}}

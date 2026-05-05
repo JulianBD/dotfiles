@@ -1,0 +1,22 @@
+# Emacs runtime state
+elpa/
+eln-cache/
+autosaves/
+backups/
+custom.el
+*.elc
+
+# Fontaine state
+fontaine-latest-state.eld
+
+# Session files
+history
+recentf
+places
+bookmarks
+
+# Reference configs (cloned repos, large)
+reference/
+
+# OS
+.DS_Store

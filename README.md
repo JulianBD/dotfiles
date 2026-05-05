@@ -62,31 +62,53 @@ The Brewfile uses conditionals based on `machine_type` (set during `chezmoi init
 | Config | Path | Templated? | Docs |
 |--------|------|-----------|------|
 | AeroSpace | `~/.config/aerospace/aerospace.toml` | Yes (monitors, gaps) | [nikitabobko.github.io/AeroSpace](https://nikitabobko.github.io/AeroSpace/) |
-| Fish | `~/.config/fish/` | Yes (secrets, cert paths) | [fishshell.com/docs](https://fishshell.com/docs/current/) |
+| aichat | `~/.config/aichat/config.yaml` | Yes (gopass: API keys) | [github.com/sigoden/aichat](https://github.com/sigoden/aichat) |
+| Fish | `~/.config/fish/` | Yes (gopass secrets, cert paths) | [fishshell.com/docs](https://fishshell.com/docs/current/) |
 | Ghostty | `~/.config/ghostty/` | No | [ghostty.org/docs](https://ghostty.org/docs) |
 | SketchyBar | `~/.config/sketchybar/` | No | [felixkratz.github.io/SketchyBar](https://felixkratz.github.io/SketchyBar/) |
 | Tuna | `~/Library/Application Support/Tuna/config.toml` | Yes (key codes) | — |
+| Todoist | `~/.config/todoist/config.json` | Yes (gopass: token) | — |
 | Emacs | `~/.emacs.d/` | No | [gnu.org/software/emacs](https://www.gnu.org/software/emacs/) |
 
 ## Secrets
 
-Secrets are **never committed to git**. They're prompted once during `chezmoi init` and stored in `~/.config/chezmoi/chezmoi.toml` (local-only, gitignored by chezmoi).
+Secrets are **never committed to git**. They're stored in [gopass](https://github.com/gopasspw/gopass) and injected into templates at `chezmoi apply` time via chezmoi's built-in `gopass` template function.
 
-| Secret | Template variable | Prompted during init |
-|--------|------------------|---------------------|
-| JIRA API Token | `.jira_api_token` | Yes |
+### gopass path convention
 
-To update a secret: `chezmoi edit-config`, change the value, then `chezmoi apply`.
+All secrets live under the `chezmoi/` prefix:
 
-### Upgrading to 1Password (future)
+| Secret | gopass path | Used by | Scope |
+|--------|-------------|---------|-------|
+| Anthropic API key | `chezmoi/anthropic-api-key` | Shell env, aichat | All machines |
+| OpenAI API key | `chezmoi/openai-api-key` | Shell env, aichat, Emacs | All machines |
+| GitHub token | `chezmoi/github-token` | Shell env | All machines |
+| Todoist token | `chezmoi/todoist-token` | Todoist config | All machines |
+| JIRA API token | `chezmoi/jira-api-token` | Shell env | Work only |
+| Atlassian token | `chezmoi/atlassian-token` | Shell env | Work only |
 
-When you have a machine with `op` CLI working, you can switch templates from `promptStringOnce` to `onepasswordRead` for automatic secret injection. Create a **Dotfiles** vault in 1Password, store secrets as items, and reference them in templates as:
+### Setup
 
+```bash
+# Install (included in Brewfile)
+brew install gnupg gopass
+
+# Init gopass with your GPG key
+gopass init <your-gpg-id>
+
+# Populate secrets
+gopass insert chezmoi/anthropic-api-key
+gopass insert chezmoi/openai-api-key
+gopass insert chezmoi/github-token
+gopass insert chezmoi/todoist-token
+# Work machines only:
+gopass insert chezmoi/jira-api-token
+gopass insert chezmoi/atlassian-token
 ```
-{{ onepasswordRead "op://Dotfiles/JIRA API Token/credential" }}
-```
 
-Docs: [chezmoi 1Password integration](https://www.chezmoi.io/user-guide/password-managers/1password/) / [op CLI reference](https://developer.1password.com/docs/cli/reference/)
+Templates reference secrets as `{{ gopass "chezmoi/<name>" }}`. `chezmoi apply` will fail if a referenced secret is missing from gopass — populate all required secrets before applying.
+
+Docs: [chezmoi gopass integration](https://www.chezmoi.io/user-guide/password-managers/gopass/) / [gopass docs](https://github.com/gopasspw/gopass/tree/master/docs)
 
 ## Machine-specific values
 

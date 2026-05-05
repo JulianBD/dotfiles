@@ -30,7 +30,8 @@ Available in `.tmpl` files — defined in `.chezmoi.toml.tmpl`:
 - `{{ .machine_type }}` — `"work"`, `"dev"`, or `"casual"`
 - `{{ .brew_prefix }}` — `/opt/homebrew` (arm64) or `/usr/local` (x86)
 - `{{ .chezmoi.hostname }}` — machine hostname
-- `{{ .cert_path }}`, `{{ .jira_api_token }}` — secrets (never commit values)
+- `{{ .cert_path }}` — cert bundle path (work machines)
+- `{{ gopass "chezmoi/<name>" }}` — secrets from gopass (never commit values)
 - `{{ .tuna_activate_keycode }}`, etc. — Tuna hotkey codes
 
 ## Service management
@@ -93,7 +94,7 @@ The repo uses Monaspace font family (Neon, Argon variants) for UI elements and A
 Conditional behavior is driven by `{{ .machine_type }}`:
 - **Brewfile**: gates packages/casks per machine type
 - **AeroSpace**: notch-aware gap calculation checks hostname
-- **Fish/Elvish**: cert paths and tokens for work machines
+- **Fish/Elvish/Zsh**: cert paths for work machines, secrets from gopass
 
 When adding machine-specific behavior, use template conditionals rather than runtime checks where possible.
 

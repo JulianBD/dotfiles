@@ -29,8 +29,13 @@ set paths = [
 set-env {{ $k }} '{{ $v }}'
 {{ end -}}
 
-{{ if .jira_api_token -}}
-set-env JIRA_API_TOKEN {{ .jira_api_token | squote }}
+# --- Secrets (from gopass) ---
+set-env ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | squote }}
+set-env OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | squote }}
+set-env GITHUB_TOKEN {{ gopass "chezmoi/github-token" | squote }}
+{{ if eq .machine_type "work" -}}
+set-env JIRA_API_TOKEN {{ gopass "chezmoi/jira-api-token" | squote }}
+set-env ATLASSIAN_API_TOKEN {{ gopass "chezmoi/atlassian-token" | squote }}
 {{ end -}}
 
 {{ if .cert_path -}}

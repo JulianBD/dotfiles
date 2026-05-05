@@ -17,8 +17,13 @@ mise activate fish | source
 set -gx {{ $k }} {{ $v | quote }}
 {{ end -}}
 
-{{ if .jira_api_token -}}
-set -gx JIRA_API_TOKEN {{ .jira_api_token | quote }}
+# --- Secrets (from gopass) ---
+set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
+set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
+set -gx GITHUB_TOKEN {{ gopass "chezmoi/github-token" | quote }}
+{{ if eq .machine_type "work" -}}
+set -gx JIRA_API_TOKEN {{ gopass "chezmoi/jira-api-token" | quote }}
+set -gx ATLASSIAN_API_TOKEN {{ gopass "chezmoi/atlassian-token" | quote }}
 {{ end -}}
 
 {{ if .cert_path -}}

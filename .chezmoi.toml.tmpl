@@ -14,9 +14,6 @@
 {{-   $certPath = joinPath .chezmoi.homeDir ".config/certs/bundle.pem" -}}
 {{- end -}}
 
-{{/* Secrets — stored in chezmoi.toml (gitignored), never committed */}}
-{{- $jiraApiToken := promptStringOnce . "jira_api_token" "JIRA API token (leave blank if none)" -}}
-
 [data]
   hostname = {{ $hostname | quote }}
   machine_type = {{ $machineType | quote }}
@@ -26,4 +23,3 @@
   tuna_leader_keycode = {{ $tunaLeaderKeyCode | quote }}
   tuna_leader_modifiers = {{ $tunaLeaderModifiers | quote }}
   cert_path = {{ $certPath | quote }}
-  jira_api_token = {{ $jiraApiToken | quote }}

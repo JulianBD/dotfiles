@@ -25,3 +25,7 @@ dest = "~/Code/svns"
 [local_links.svns]
 source = "~/Code/svns/svns.hs"
 dest = "~/bin"
+
+[local_links.tangle]
+source = "~/.config/dotfiles/tangle.janet"
+dest = "~/bin"

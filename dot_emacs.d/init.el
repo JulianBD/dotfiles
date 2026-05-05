@@ -1,80 +1,74 @@
-;;; init.el --- Julian's Emacs configuration -*- lexical-binding: t -*-
-
-;; Copyright (c) 2025 Julian Dorsey
+;;; init.el --- Main entry point -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; This is a modular Emacs configuration that prioritizes:
-;; - Clean, maintainable organization
-;; - ADHD-friendly note capture
-;; - Evil mode integration
-;; - Modern completion framework
+;;
+;; Bootstraps packages and loads modules in dependency order.
+;; This file is the bill of materials for the config.
 
 ;;; Code:
 
-(defvar jd--initial-gc-threshold gc-cons-threshold
-  "Initial value of `gc-cons-threshold' at startup.")
-(setq gc-cons-threshold 100000000)
+;; --- Load path ---
 
-(add-to-list 'load-path (expand-file-name "lisp"
-                                         (file-name-directory load-file-name)))
+(add-to-list 'load-path
+             (expand-file-name "modules" user-emacs-directory))
+
+;; --- Package management ---
 
 (require 'package)
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
+(setq package-archives
+      '(("gnu"    . "https://elpa.gnu.org/packages/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("melpa"  . "https://melpa.org/packages/")))
+
+;; Prefer official archives over MELPA when a package exists in both.
+(setq package-archive-priorities
+      '(("gnu"    . 3)
+        ("nongnu" . 2)
+        ("melpa"  . 1)))
+
 (package-initialize)
 
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
+;; Restore early-init startup overrides now that package.el is ready.
+(setq file-name-handler-alist me--file-name-handler-alist
+      vc-handled-backends me--vc-handled-backends)
 
-(eval-when-compile
-  (require 'use-package))
-(require 'use-package-ensure)
+;; Bootstrap use-package on Emacs < 29 (built-in from 29 onward).
+(when (< emacs-major-version 29)
+  (unless (package-installed-p 'use-package)
+    (unless package-archive-contents
+      (package-refresh-contents))
+    (package-install 'use-package)))
 
-(setq use-package-always-ensure nil)
+;; --- Custom file ---
 
-(defun jd--package-install-needed-p ()
-  "Return t if we need to install packages (first run)."
-  (not (file-exists-p (expand-file-name "package-installed" user-emacs-directory))))
+;; Keep custom-set-variables out of init.el.
+(setq custom-file (locate-user-emacs-file "custom.el"))
+(load custom-file :no-error-if-file-is-missing)
 
-(require 'jd-base)
-(require 'jd-ui)
-(require 'jd-minimal-modeline)
-(require 'jd-edit)
-(require 'jd-evil-extensions)
-(require 'jd-evil-keypad)
-(require 'jd-navigation)
-(require 'jd-completion)
-(require 'jd-org)
-(require 'jd-notes)
-(require 'jd-dev)
-;; Load modular journal system
-(require 'jd-journal-core)
-(require 'jd-journal-templates)
-(require 'jd-journal-ai)
-(require 'jd-journal-keybindings)
-;; Load AI module with error handling
-(condition-case err
-    (require 'jd-ai)
-  (error (message "Warning: Could not load jd-ai module: %s" err)))
+;; --- Modules ---
 
-(setq custom-file (expand-file-name "etc/custom.el"
-                                  (file-name-directory load-file-name)))
-(when (file-exists-p custom-file)
-  (load custom-file))
+(require 'me-defaults)
+(require 'me-editing)
+(require 'me-ui)
+(require 'me-completion)
+(require 'me-dired)
+(require 'me-modal)
+(require 'me-writing)
+;; (require 'me-programming)
+;; (require 'me-ai)
 
-(setq gc-cons-threshold (or jd--initial-gc-threshold 800000))
+;; --- Generated configuration ---
+;;
+;; These files are produced by `M-x me-contract-generate' from
+;; the JSON files in config/.  They contain plain setq, keymap-global-set,
+;; etc. — no framework dependency at load time.
+;; Edit config/*.json, then regenerate.  Do not edit generated/*.el by hand.
+(add-to-list 'load-path
+             (expand-file-name "generated" user-emacs-directory))
+(require 'me-generated-defaults)
+(require 'me-generated-editing)
+(require 'me-generated-appearance)
+(require 'me-generated-keybindings)
 
+(provide 'init)
 ;;; init.el ends here
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(jd-themes-default-theme 'modus-vivendi-tinted))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )

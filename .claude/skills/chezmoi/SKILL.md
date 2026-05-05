@@ -29,15 +29,14 @@ brew "nushell"
 {{ end -}}
 ```
 
-**Injecting secrets** — fish config uses tokens without committing them:
+**Injecting secrets from gopass** — shell configs pull secrets at template render time:
 ```
-{{ if .jira_api_token -}}
-set -gx JIRA_API_TOKEN {{ .jira_api_token | quote }}
-{{ end -}}
-
-{{ if .cert_path -}}
-set -gx SSL_CERT_FILE {{ .cert_path }}
-set -gx NODE_EXTRA_CA_CERTS {{ .cert_path }}
+# --- Secrets (from gopass) ---
+set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
+set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
+set -gx GITHUB_TOKEN {{ gopass "chezmoi/github-token" | quote }}
+{{ if eq .machine_type "work" -}}
+set -gx JIRA_API_TOKEN {{ gopass "chezmoi/jira-api-token" | quote }}
 {{ end -}}
 ```
 
@@ -57,11 +56,11 @@ Available template variables (defined in `.chezmoi.toml.tmpl`):
 - `.brew_prefix` — `/opt/homebrew` or `/usr/local`
 - `.hostname` — machine hostname
 - `.cert_path` — CA bundle path (work machines)
-- `.jira_api_token` — JIRA token (work machines)
+- `{{ gopass "chezmoi/<name>" }}` — secrets from gopass (anthropic-api-key, openai-api-key, github-token, todoist-token, jira-api-token, atlassian-token)
 - `.tuna_activate_keycode`, `.tuna_activate_modifiers`, `.tuna_leader_keycode`, `.tuna_leader_modifiers` — Tuna hotkey carbon key codes
 - `.chezmoi.os`, `.chezmoi.arch`, `.chezmoi.hostname` — built-in system info
 
-To add a new template variable, add a `promptStringOnce` or `promptChoiceOnce` call in `.chezmoi.toml.tmpl` and a corresponding line in the `[data]` section. Users will be prompted on next `chezmoi init`.
+To add a new template variable, add a `promptStringOnce` or `promptChoiceOnce` call in `.chezmoi.toml.tmpl` and a corresponding line in the `[data]` section. Users will be prompted on next `chezmoi init`. For secrets, use `{{ gopass "chezmoi/<name>" }}` directly in templates instead of template variables — see gopass convention below.
 
 ### Run scripts
 
