@@ -1,5 +1,5 @@
 # .zshrc — Managed by chezmoi
-# Used as the default shell for LLM agents; stays in sync with fish/elvish
+# Used as the default shell for LLM agents; stays in sync with fish/xonsh
 # via .chezmoidata/shell.yaml.
 
 # --- Homebrew ---
@@ -20,12 +20,12 @@ export {{ $k }}={{ $v | quote }}
 {{ end -}}
 
 # --- Secrets (from gopass) ---
-export ANTHROPIC_API_KEY={{ gopass "chezmoi/anthropic-api-key" | quote }}
-export OPENAI_API_KEY={{ gopass "chezmoi/openai-api-key" | quote }}
 export GITHUB_TOKEN={{ gopass "chezmoi/github-token" | quote }}
 {{ if eq .machine_type "work" -}}
-export JIRA_API_TOKEN={{ gopass "chezmoi/jira-api-token" | quote }}
 export ATLASSIAN_API_TOKEN={{ gopass "chezmoi/atlassian-token" | quote }}
+{{ else -}}
+export ANTHROPIC_API_KEY={{ gopass "chezmoi/anthropic-api-key" | quote }}
+export OPENAI_API_KEY={{ gopass "chezmoi/openai-api-key" | quote }}
 {{ end -}}
 
 {{ if .cert_path -}}

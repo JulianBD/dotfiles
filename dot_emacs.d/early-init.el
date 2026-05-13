@@ -46,6 +46,8 @@
       '((tool-bar-lines . 0)
         (vertical-scroll-bars . nil)
         (horizontal-scroll-bars . nil)
+        (ns-transparent-titlebar . t)
+        (ns-appearance . dark)
         ;; Reasonable initial size; will be overridden if you maximize.
         (width . 120)
         (height . 45)))

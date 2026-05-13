@@ -80,12 +80,11 @@ All secrets live under the `chezmoi/` prefix:
 
 | Secret | gopass path | Used by | Scope |
 |--------|-------------|---------|-------|
-| Anthropic API key | `chezmoi/anthropic-api-key` | Shell env, aichat | All machines |
-| OpenAI API key | `chezmoi/openai-api-key` | Shell env, aichat, Emacs | All machines |
 | GitHub token | `chezmoi/github-token` | Shell env | All machines |
-| Todoist token | `chezmoi/todoist-token` | Todoist config | All machines |
-| JIRA API token | `chezmoi/jira-api-token` | Shell env | Work only |
 | Atlassian token | `chezmoi/atlassian-token` | Shell env | Work only |
+| Anthropic API key | `chezmoi/anthropic-api-key` | Shell env, aichat | Personal only |
+| OpenAI API key | `chezmoi/openai-api-key` | Shell env, aichat, Emacs | Personal only |
+| Todoist token | `chezmoi/todoist-token` | Todoist config | Personal only |
 
 ### Setup
 
@@ -96,14 +95,14 @@ brew install gnupg gopass
 # Init gopass with your GPG key
 gopass init <your-gpg-id>
 
-# Populate secrets
+# Populate secrets — all machines:
+gopass insert chezmoi/github-token
+# Work machines only:
+gopass insert chezmoi/atlassian-token
+# Personal (dev/casual) machines only:
 gopass insert chezmoi/anthropic-api-key
 gopass insert chezmoi/openai-api-key
-gopass insert chezmoi/github-token
 gopass insert chezmoi/todoist-token
-# Work machines only:
-gopass insert chezmoi/jira-api-token
-gopass insert chezmoi/atlassian-token
 ```
 
 Templates reference secrets as `{{ gopass "chezmoi/<name>" }}`. `chezmoi apply` will fail if a referenced secret is missing from gopass — populate all required secrets before applying.

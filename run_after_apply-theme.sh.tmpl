@@ -1,20 +1,22 @@
 #!/bin/bash
-# Apply current theme to all downstream configs via elvish
+# Apply current theme to all downstream configs via Python theme pipeline
 set -euo pipefail
 
 eval "$({{ .brew_prefix }}/bin/brew shellenv)"
 
-if ! command -v elvish &>/dev/null; then
-    echo "elvish not installed yet, skipping theme apply"
+if ! command -v python3 &>/dev/null; then
+    echo "python3 not installed yet, skipping theme apply"
     exit 0
 fi
 
-# Sync palette database first (needed for both fresh and existing)
-echo "Syncing theme palette database..."
-elvish -c "use dotfiles/palette; palette:sync"
+DOTFILES_DIR="{{ .chezmoi.homeDir }}/.config/dotfiles"
+if [ ! -f "$DOTFILES_DIR/theme_db.py" ]; then
+    echo "Theme scripts not deployed yet, skipping"
+    exit 0
+fi
 
 # Apply current theme, or default to standard-light on fresh install
-CURRENT_THEME_FILE="$HOME/.config/dotfiles/current-theme"
+CURRENT_THEME_FILE="{{ .chezmoi.homeDir }}/.config/dotfiles/current-theme"
 if [ ! -f "$CURRENT_THEME_FILE" ]; then
     echo "No theme set, defaulting to standard-light"
     THEME="standard-light"
@@ -23,4 +25,16 @@ else
 fi
 
 echo "Applying theme: $THEME"
-elvish -c "use dotfiles/theme; theme:apply $THEME"
+python3 -c "
+import sys
+sys.path.insert(0, '$DOTFILES_DIR')
+from theme_db import build_db
+from generators import generate_all, generate_xonsh
+db = build_db()
+if '$THEME' not in db:
+    print('Unknown theme: $THEME', file=sys.stderr)
+    sys.exit(1)
+entry = db['$THEME']
+generate_all(entry['palette'], '$THEME', entry['variant'])
+generate_xonsh(entry['palette'], '$THEME', entry['variant'])
+"

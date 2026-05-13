@@ -12,5 +12,7 @@ dot_emacs.d/nerd-fonts-checked
 dot_emacs.d/history
 dot_emacs.d/.chatgpt-shell.el
 
+__pycache__/
+
 # Generated at runtime by theme pipeline
 dot_config/sketchybar/colors.lua

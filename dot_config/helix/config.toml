@@ -1,4 +1,22 @@
 theme = "prot-current"
 
+[editor]
+line-number = "relative"
+cursorline = true
+color-modes = true
+bufferline = "multiple"
+popup-border = "all"
+idle-timeout = 100
+trim-trailing-whitespace = true
+
+[editor.cursor-shape]
+normal = "block"
+insert = "bar"
+select = "underline"
+
+[editor.soft-wrap]
+enable = true
+wrap-indicator = ""
+
 [editor.file-picker]
 hidden = false

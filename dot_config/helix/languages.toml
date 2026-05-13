@@ -1,4 +1,15 @@
 [[language]]
+name = "bujo"
+scope = "source.bujo"
+file-types = ["bujo"]
+comment-tokens = ["//"]
+indent = { tab-width = 2, unit = "  " }
+
+[[grammar]]
+name = "bujo"
+source = { path = "/Users/dorseyj/tools/tree-sitter-bujo" }
+
+[[language]]
 name = "markdown"
 scope = "source.md"
 injection-regex = "md|markdown"

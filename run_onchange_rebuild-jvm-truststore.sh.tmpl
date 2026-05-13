@@ -19,17 +19,12 @@ if [ ! -f "$ROOT_CERT" ]; then
   exit 0
 fi
 
-if ! command -v elvish >/dev/null 2>&1; then
-  echo "jdk-cacerts: elvish not installed; skipping"
-  exit 0
-fi
-
 if ! command -v mise >/dev/null 2>&1 || ! mise where java >/dev/null 2>&1; then
   echo "jdk-cacerts: no Java managed by mise; skipping"
   exit 0
 fi
 
-elvish -c 'use dotfiles/certs; certs:inject-zscaler-into-jdk'
+python3 "{{ .chezmoi.homeDir }}/.config/dotfiles/certs.py" inject-jdk
 {{ else -}}
 exit 0
 {{ end -}}

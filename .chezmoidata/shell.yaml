@@ -1,5 +1,6 @@
 shell:
   env:
+    BAT_THEME: "base16"
     IGNORE_AUTH_TEST: "true"
     IGNORE_HOST_CONF: "true"
     TFENV_ARCH: "amd64"

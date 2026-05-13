@@ -65,6 +65,7 @@
 (setq gnutls-verify-error t)
 (setq tls-checktrust t)
 (setq gnutls-min-prime-bits 3072)
+(setq gnutls-trustfiles '("/Users/dorseyj/.config/certs/bundle.pem"))
 (setq auth-sources '("~/.authinfo.gpg"))
 
 ;; --- Performance ---

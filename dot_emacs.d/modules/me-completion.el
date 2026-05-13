@@ -23,7 +23,9 @@
 
 (use-package vertico
   :ensure t
-  :hook (after-init . vertico-mode))
+  :hook (after-init . vertico-mode)
+  :config
+  (add-hook 'minibuffer-setup-hook #'vertico-repeat-save))
 
 ;; --- Completion annotations (marginalia) ---
 
@@ -43,25 +45,16 @@
 ;; Drop-in replacements for built-in commands with live preview.
 (use-package consult
   :ensure t
-  :bind (("C-x b"   . consult-buffer)
-         ("C-x 4 b" . consult-buffer-other-window)
-         ("M-g g"   . consult-goto-line)
-         ("M-g M-g" . consult-goto-line)
-         ("M-g o"   . consult-outline)
-         ("M-g i"   . consult-imenu)
-         ("M-s l"   . consult-line)
-         ("M-s r"   . consult-ripgrep)
-         ("M-s f"   . consult-find)
-         ("M-y"     . consult-yank-pop)))
+  :config
+  (setq consult-narrow-key "<"))
 
 ;; --- Contextual actions (embark) ---
 
 ;; Act on any completion candidate or thing at point.
 (use-package embark
   :ensure t
-  :bind (("C-."   . embark-act)
-         ("C-;"   . embark-dwim)
-         ("C-h B" . embark-bindings)))
+  :config
+  (setq embark-cycle-key "C-."))
 
 ;; Wire embark into consult for exportable search results.
 (use-package embark-consult
@@ -79,7 +72,6 @@
 (use-package corfu
   :ensure t
   :hook (after-init . global-corfu-mode)
-  :bind (:map corfu-map ("<tab>" . corfu-complete))
   :config
   (setq tab-always-indent 'complete)
   (setq corfu-preview-current nil)              ; don't insert before confirming

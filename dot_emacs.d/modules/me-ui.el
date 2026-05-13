@@ -10,9 +10,12 @@
 
 ;; Install theme packages.  Which theme to load is controlled by
 ;; config/appearance.json → generated/me-generated-appearance.el.
-(use-package modus-themes :ensure t)
-(use-package ef-themes :ensure t)
-(use-package standard-themes :ensure t)
+(use-package modus-themes
+  :vc (:url "https://github.com/protesilaos/modus-themes.git" :rev "main"))
+(use-package ef-themes
+  :vc (:url "https://github.com/protesilaos/ef-themes.git" :rev "main"))
+(use-package standard-themes
+  :vc (:url "https://github.com/protesilaos/standard-themes.git" :rev "main"))
 (use-package doric-themes
   :vc (:url "https://github.com/protesilaos/doric-themes.git" :rev "main"))
 
@@ -21,7 +24,7 @@
 ;; Install fontaine.  Preset configuration is generated from
 ;; config/appearance.json → generated/me-generated-appearance.el.
 (use-package fontaine
-  :ensure t
+  :vc (:url "https://github.com/protesilaos/fontaine.git" :rev "main")
   :config
   (setq fontaine-latest-state-file
         (locate-user-emacs-file "fontaine-latest-state.eld"))

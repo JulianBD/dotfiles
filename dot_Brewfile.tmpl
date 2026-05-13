@@ -9,7 +9,6 @@ tap "d12frosted/emacs-plus"
 tap "felixkratz/formulae"
 tap "nikitabobko/tap"
 {{ if eq .machine_type "work" -}}
-tap "ankitpokhrel/jira-cli"
 tap "hashicorp/tap"
 tap "radiusmethod/awsd"
 tap "theurichde/go-aws-sso"
@@ -17,7 +16,6 @@ tap "theurichde/go-aws-sso"
 
 # --- Shells ------------------------------------------------------------------
 brew "bash"
-brew "elvish"
 brew "fish"
 brew "fisher"
 brew "zsh"
@@ -67,12 +65,11 @@ brew "parallel"
 brew "socat"
 {{ end -}}
 {{ if eq .machine_type "work" -}}
-brew "jira-cli"
 brew "radiusmethod/awsd/awsd"
 {{ end -}}
 
 # --- Desktop environment ----------------------------------------------------
-cask "d12frosted/emacs-plus/emacs-plus-app"
+cask "d12frosted/emacs-plus/emacs-plus-app@master"
 brew "felixkratz/formulae/borders"
 brew "felixkratz/formulae/sketchybar"
 

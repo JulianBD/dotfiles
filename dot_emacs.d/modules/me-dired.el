@@ -24,8 +24,5 @@
     (setq ls-lisp-use-insert-directory-program nil)
     (setq ls-lisp-dirs-first t)))
 
-;; Replace the default buffer list with ibuffer.
-(keymap-global-set "C-x C-b" #'ibuffer)
-
 (provide 'me-dired)
 ;;; me-dired.el ends here

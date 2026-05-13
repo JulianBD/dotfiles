@@ -1,8 +1,8 @@
 ---
 name: chezmoi
-description: Manage this chezmoi dotfiles repo — add/edit/apply/diff files, write templates, create run scripts, handle machine-specific config, and debug deployment issues. Use whenever the user wants to change a dotfile, add/remove a package or tool, modify any app config, work with the theme pipeline, or asks about chezmoi state. Also trigger when the user mentions Brewfile, mise, sketchybar, aerospace, ghostty, helix, fish, elvish, zed, or Emacs config.
+description: Manage this chezmoi dotfiles repo — add/edit/apply/diff files, write templates, create run scripts, handle machine-specific config, and debug deployment issues. Use whenever the user wants to change a dotfile, add/remove a package or tool, modify any app config, work with the theme pipeline, or asks about chezmoi state. Also trigger when the user mentions Brewfile, mise, sketchybar, aerospace, ghostty, helix, fish, xonsh, zed, or Emacs config.
 argument-hint: [what to do]
-allowed-tools: Bash(chezmoi *) Bash(elvish *) Bash(brew services *) Bash(sketchybar *)
+allowed-tools: Bash(chezmoi *) Bash(brew services *) Bash(sketchybar *)
 ---
 
 ## How this repo works
@@ -20,8 +20,7 @@ Any source file ending in `.tmpl` is a Go template evaluated before deployment. 
 **Conditionals on machine type** — the Brewfile gates packages per machine:
 ```
 {{ if eq .machine_type "work" -}}
-tap "ankitpokhrel/jira-cli"
-brew "jira-cli"
+cask "microsoft-edge"
 {{ end -}}
 
 {{ if ne .machine_type "casual" -}}
@@ -32,11 +31,12 @@ brew "nushell"
 **Injecting secrets from gopass** — shell configs pull secrets at template render time:
 ```
 # --- Secrets (from gopass) ---
-set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
-set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
 set -gx GITHUB_TOKEN {{ gopass "chezmoi/github-token" | quote }}
 {{ if eq .machine_type "work" -}}
-set -gx JIRA_API_TOKEN {{ gopass "chezmoi/jira-api-token" | quote }}
+set -gx ATLASSIAN_API_TOKEN {{ gopass "chezmoi/atlassian-token" | quote }}
+{{ else -}}
+set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
+set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
 {{ end -}}
 ```
 
@@ -56,7 +56,7 @@ Available template variables (defined in `.chezmoi.toml.tmpl`):
 - `.brew_prefix` — `/opt/homebrew` or `/usr/local`
 - `.hostname` — machine hostname
 - `.cert_path` — CA bundle path (work machines)
-- `{{ gopass "chezmoi/<name>" }}` — secrets from gopass (anthropic-api-key, openai-api-key, github-token, todoist-token, jira-api-token, atlassian-token)
+- `{{ gopass "chezmoi/<name>" }}` — secrets from gopass (github-token on all machines; atlassian-token on work; anthropic-api-key, openai-api-key, todoist-token on personal)
 - `.tuna_activate_keycode`, `.tuna_activate_modifiers`, `.tuna_leader_keycode`, `.tuna_leader_modifiers` — Tuna hotkey carbon key codes
 - `.chezmoi.os`, `.chezmoi.arch`, `.chezmoi.hostname` — built-in system info
 
@@ -89,7 +89,7 @@ The numeric prefix (`01-`, `02-`, `03-`) controls execution order — brew insta
 
 ```bash
 #!/bin/bash
-# Apply current theme to all downstream configs via elvish
+# Apply current theme to all downstream configs via Python theme pipeline
 set -euo pipefail
 eval "$({{ .brew_prefix }}/bin/brew shellenv)"
 # ... syncs palette database, applies current theme
@@ -148,7 +148,8 @@ After editing source files, deploy with `chezmoi apply` (all files) or `chezmoi 
 - **AeroSpace**: auto-reloads on config change
 - **Fish**: new shell sessions pick up changes; `source ~/.config/fish/config.fish` for the current session
 - **Helix/Zed/Emacs**: restart the editor
-- **Theme changes**: `elvish -c "use dotfiles/theme; theme:apply <name>"` to apply a new theme across all apps
+- **Xonsh**: new shell sessions pick up changes; theme is sourced from `~/.config/xonsh/theme.xsh`
+- **Theme changes**: from xonsh, `theme apply <name>` to apply across all apps (Python pipeline in `~/.config/dotfiles/`)
 
 ## Debugging chezmoi issues
 

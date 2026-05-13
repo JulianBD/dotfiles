@@ -36,6 +36,9 @@ mkdir -p "$INSTALLDIR"
   trap 'rm -rf "$WORKDIR"' EXIT
   git clone {{ $tool.repo | quote }} "$WORKDIR"
   cd "$WORKDIR"
+  {{ if hasKey $tool "version" -}}
+  git checkout {{ $tool.version | quote }}
+  {{ end -}}
   {{ $tool.build }}
   echo "  {{ $name }} installed to $INSTALLDIR"
 )

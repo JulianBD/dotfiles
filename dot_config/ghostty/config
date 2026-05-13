@@ -19,8 +19,11 @@
 # ==========================
 # # The config file consists of simple key-value pairs,
 # # separated by equals signs.
-font-family = "Monaspace Neon NF"
+font-family = "AporeticSansMono Nerd Font"
 font-size = 16
+font-feature = calt
+font-feature = liga
+font-feature = dlig
 window-theme = "auto"
 theme = doric-marble
 window-padding-x = 5

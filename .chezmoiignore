@@ -39,7 +39,7 @@ LICENSE
 .config/sketchybar/colors.sh
 .config/sketchybar/colors.lua
 
-# Theme pipeline: runtime state (managed by elvish modules)
+# Theme pipeline: runtime state (managed by prot-theme)
 .config/dotfiles/themes.json
 .config/dotfiles/current-theme
 
@@ -54,6 +54,12 @@ Library/Application Support/Tuna/Mnemonics.plist
 Library/Application Support/Tuna/PlugIns
 Library/Application Support/Tuna/PlugInsDev
 Library/Application Support/Tuna/ProxyHistory.plist
+
+# Personal-only: configs that need API keys not in work gopass
+{{ if eq .machine_type "work" -}}
+.config/aichat
+.config/todoist
+{{ end -}}
 
 # Work-only: Zscaler root cert and generated bundle
 {{ if ne .machine_type "work" -}}

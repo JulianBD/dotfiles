@@ -16,21 +16,20 @@
 
 (require 'package)
 (setq package-archives
-      '(("gnu"    . "https://elpa.gnu.org/packages/")
-        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-        ("melpa"  . "https://melpa.org/packages/")))
-
-;; Prefer official archives over MELPA when a package exists in both.
-(setq package-archive-priorities
-      '(("gnu"    . 3)
-        ("nongnu" . 2)
-        ("melpa"  . 1)))
+      '(("melpa"  . "https://melpa.org/packages/")))
 
 (package-initialize)
 
 ;; Restore early-init startup overrides now that package.el is ready.
 (setq file-name-handler-alist me--file-name-handler-alist
       vc-handled-backends me--vc-handled-backends)
+
+;; Zscaler TLS inspection — must be set before any network calls.
+(setq gnutls-trustfiles '("/Users/dorseyj/.config/certs/bundle.pem"))
+
+;; GNU ELPA packages installed via VC (gnu/nongnu archives blocked by Zscaler).
+(use-package compat
+  :vc (:url "https://github.com/emacs-compat/compat.git" :rev "main"))
 
 ;; Bootstrap use-package on Emacs < 29 (built-in from 29 onward).
 (when (< emacs-major-version 29)

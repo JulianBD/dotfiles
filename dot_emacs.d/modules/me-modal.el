@@ -43,19 +43,16 @@
   :ensure nil
   :vc (:url "https://github.com/anuvyklack/hel.git" :rev "main")
   :config
-  (hel-mode))
+  (hel-set-initial-state 'markdown-ts-mode 'normal)
+  :hook (after-init . hel-mode))
 
 (use-package hel-leader
   :after hel
-  :vc (:url "https://github.com/anuvyklack/hel.git"
-       :rev "main"
-       :lisp-dir "extensions/hel-leader"))
+  :vc (:url "https://github.com/anuvyklack/hel-leader.git" :rev "main"))
 
 (use-package hel-org
   :after hel
-  :vc (:url "https://github.com/anuvyklack/hel.git"
-       :rev "main"
-       :lisp-dir "extensions/hel-org"))
+  :vc (:url "https://github.com/anuvyklack/hel-org.git" :rev "main"))
 
 ;; Scope registrations for the contract framework (hel-state,
 ;; hel-state-mode) live in me-scopes.el, which the generator

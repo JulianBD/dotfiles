@@ -10,7 +10,7 @@
   "helix_mode": false,
   "terminal": {
     "dock": "bottom",
-    "font_family": "Monaspace Argon NF",
+    "font_family": "AporeticSansMono Nerd Font",
     "font_weight": 400,
     "font_features": { "calt": true },
     "line_height": { "custom": 1.0 },
@@ -26,9 +26,9 @@
 
   "autosave": { "after_delay": { "milliseconds": 1000 } },
   "ui_font_size": 16,
-  "ui_font_family": "Monaspace Neon Var",
+  "ui_font_family": "Aporetic Sans",
   "buffer_font_size": 16,
-  "buffer_font_family": "Monaspace Argon NF",
+  "buffer_font_family": "AporeticSansMono Nerd Font",
   "buffer_font_features": {
     "calt": true,
     "liga": true,

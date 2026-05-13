@@ -3,10 +3,19 @@ if status is-interactive
 end
 
 # --- Homebrew ---
-{{ if eq .chezmoi.arch "arm64" -}}
-/opt/homebrew/bin/brew shellenv | source
-{{ else -}}
-/usr/local/bin/brew shellenv | source
+set -gx HOMEBREW_PREFIX "{{ .brew_prefix }}"
+set -gx HOMEBREW_CELLAR "{{ .brew_prefix }}/Cellar"
+set -gx HOMEBREW_REPOSITORY "{{ .brew_prefix }}"
+fish_add_path "{{ .brew_prefix }}/bin" "{{ .brew_prefix }}/sbin"
+if test -n "$MANPATH[1]"; set -gx MANPATH '' $MANPATH; end
+if not contains "{{ .brew_prefix }}/share/info" $INFOPATH; set -gx INFOPATH "{{ .brew_prefix }}/share/info" $INFOPATH; end
+
+# --- PATH (from .chezmoidata/shell.yaml) ---
+{{ range .shell.paths_home -}}
+fish_add_path "$HOME/{{ . }}"
+{{ end -}}
+{{ range .shell.paths_absolute -}}
+fish_add_path "{{ . }}"
 {{ end -}}
 
 # --- mise ---
@@ -18,12 +27,12 @@ set -gx {{ $k }} {{ $v | quote }}
 {{ end -}}
 
 # --- Secrets (from gopass) ---
-set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
-set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
 set -gx GITHUB_TOKEN {{ gopass "chezmoi/github-token" | quote }}
 {{ if eq .machine_type "work" -}}
-set -gx JIRA_API_TOKEN {{ gopass "chezmoi/jira-api-token" | quote }}
 set -gx ATLASSIAN_API_TOKEN {{ gopass "chezmoi/atlassian-token" | quote }}
+{{ else -}}
+set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
+set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
 {{ end -}}
 
 {{ if .cert_path -}}
@@ -34,14 +43,6 @@ set -gx AWS_CA_BUNDLE {{ .cert_path | quote }}
 # JVM: zscaler is injected directly into the JDK's cacerts by
 # run_onchange_rebuild-jvm-truststore.sh, so no JAVA_TOOL_OPTIONS needed.
 {{ end -}}
-
-# --- PATH (from .chezmoidata/shell.yaml) ---
-{{ range .shell.paths_home -}}
-fish_add_path "$HOME/{{ . }}"
-{{ end -}}
-{{ range .shell.paths_absolute -}}
-fish_add_path "{{ . }}"
-{{ end }}
 
 # --- Aliases (from .chezmoidata/shell.yaml) ---
 {{ range .shell.aliases -}}
