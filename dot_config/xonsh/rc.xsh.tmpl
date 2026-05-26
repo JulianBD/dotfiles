@@ -251,8 +251,7 @@ completer add theme _theme_completer start
 
 # --- Carapace completions ---
 try:
-    $CARAPACE_BRIDGES = 'inshellisense'
-    execx($(carapace _carapace xonsh))
+    execx($(CARAPACE_BRIDGES='' carapace _carapace xonsh))
 except:
     pass
 

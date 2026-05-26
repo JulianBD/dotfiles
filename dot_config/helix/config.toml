@@ -9,6 +9,9 @@ popup-border = "all"
 idle-timeout = 100
 trim-trailing-whitespace = true
 
+[editor.indent-guides]
+render = true
+
 [editor.cursor-shape]
 normal = "block"
 insert = "bar"
