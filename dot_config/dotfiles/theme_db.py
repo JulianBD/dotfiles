@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
-"""Build the unified theme database from all four Prot theme families.
+"""Build the unified theme database from all theme families.
 
-Runs all four parsers, merges colors+semantic into a single flat lookup
-per theme, and normalizes doric naming into the modus/ef/standard vocabulary.
+Runs all parsers, merges colors+semantic into a single flat lookup per theme,
+normalizes doric naming, and resolves syntax roles per family philosophy.
 
-Usage:
-    python theme_db.py [--write]       # print to stdout, or write to themes.json
-    python theme_db.py --write PATH    # write to specific file
+Each theme entry has:
+    palette  — flat dict of palette key → hex color
+    roles    — dict of abstract syntax role → hex color (resolved from
+               Emacs semantic keys or the family's role map)
+    family, variant — metadata
 
-Output per theme:
-    {
-      "ef-autumn": {
-        "family": "ef",
-        "variant": "dark",
-        "palette": { "bg-main": "#0f0e06", "cursor": "#ffaa33", "red": "#ef656a", ... }
-      },
-      ...
-    }
-
-The "palette" dict is a flat merge of colors + resolved semantic. Every value
-is a hex color string. Generators look up keys directly — no fallback chains.
-Keys that a theme doesn't define are simply absent.
-
-Doric themes have their names normalized into the modus vocabulary where
-there's a clear 1:1 correspondence. Keys without a natural mapping keep
-their doric names (prefixed with fg-/bg-) so generators can still use them.
+The "roles" dict decouples syntax philosophy from palette. Prot's families
+use his Emacs face conventions (keyword→purple, function→magenta). Flexoki
+uses Steph Ango's conventions (keyword→green, function→orange). Generators
+read roles to produce correct output for any family.
 """
 
 import json
@@ -39,6 +28,7 @@ from parse_modus import parse_modus
 from parse_ef import parse_ef_themes
 from parse_standard import parse_standard_themes
 from parse_doric import parse_doric_themes
+from parse_flexoki import parse_flexoki
 
 # Default source locations
 SOURCES = Path.home() / ".local/share/dotfiles/theme-sources"
@@ -114,8 +104,70 @@ def normalize_doric(palette: dict) -> dict:
     return normalized
 
 
+# --- Syntax role resolution ---
+# Maps Emacs semantic palette keys to abstract role names.
+# Modus, ef, and standard palettes already carry these as resolved hex.
+EMACS_TO_ROLE = {
+    "keyword": "keyword",
+    "fnname": "function",
+    "string": "string",
+    "type": "type",
+    "variable": "variable",
+    "constant": "constant",
+    "comment": "comment",
+    "operator": "operator",
+    "builtin": "builtin",
+    "preprocessor": "preprocessor",
+    "docstring": "docstring",
+    "number": "number",
+    "property": "property",
+}
+
+# Prot's convention for roles not in the Emacs semantic layer.
+# Used by all Prot families; also the full fallback for doric
+# (which lacks the Emacs semantic keys entirely).
+PROT_ROLE_MAP = {
+    "keyword":      "magenta-cooler",
+    "function":     "magenta",
+    "string":       "blue-warmer",
+    "type":         "cyan",
+    "variable":     "cyan-warmer",
+    "constant":     "blue",
+    "comment":      "fg-dim",
+    "operator":     "magenta",
+    "builtin":      "magenta-warmer",
+    "preprocessor": "red-cooler",
+    "docstring":    "green-cooler",
+    "number":       "fg-main",
+    "property":     "blue",
+    "tag":          "blue",
+    "attribute":    "red",
+    "namespace":    "cyan-warmer",
+    "constructor":  "magenta",
+}
+
+
+def resolve_roles(palette: dict, role_map: dict | None = None) -> dict:
+    """Build resolved roles dict: abstract role name → hex color.
+
+    First pulls from Emacs semantic keys already in the palette (modus/ef/standard).
+    Then fills gaps from the role_map (needed for doric, flexoki, etc.).
+    """
+    roles = {}
+    # 1. Pull from Emacs semantic keys already in palette
+    for emacs_key, role in EMACS_TO_ROLE.items():
+        if emacs_key in palette:
+            roles[role] = palette[emacs_key]
+    # 2. Fill from role_map for anything missing
+    if role_map:
+        for role, palette_key in role_map.items():
+            if role not in roles and palette_key in palette:
+                roles[role] = palette[palette_key]
+    return roles
+
+
 def build_db() -> dict:
-    """Build the complete theme database from all four families."""
+    """Build the complete theme database from all families."""
     db = {}
 
     # --- Modus ---
@@ -123,10 +175,12 @@ def build_db() -> dict:
     if modus_el.exists():
         modus = parse_modus(modus_el.read_text())
         for name, theme in modus.items():
+            palette = merge_theme(theme["colors"], theme["semantic"])
             db[name] = {
                 "family": "modus",
                 "variant": theme["variant"],
-                "palette": merge_theme(theme["colors"], theme["semantic"]),
+                "palette": palette,
+                "roles": resolve_roles(palette, PROT_ROLE_MAP),
             }
 
     # --- Ef ---
@@ -134,10 +188,12 @@ def build_db() -> dict:
     if ef_dir.is_dir():
         ef = parse_ef_themes(ef_dir)
         for name, theme in ef.items():
+            palette = merge_theme(theme["colors"], theme["semantic"])
             db[name] = {
                 "family": "ef",
                 "variant": theme["variant"],
-                "palette": merge_theme(theme["colors"], theme["semantic"]),
+                "palette": palette,
+                "roles": resolve_roles(palette, PROT_ROLE_MAP),
             }
 
     # --- Standard ---
@@ -145,10 +201,12 @@ def build_db() -> dict:
     if std_dir.is_dir():
         std = parse_standard_themes(std_dir)
         for name, theme in std.items():
+            palette = merge_theme(theme["colors"], theme["semantic"])
             db[name] = {
                 "family": "standard",
                 "variant": theme["variant"],
-                "palette": merge_theme(theme["colors"], theme["semantic"]),
+                "palette": palette,
+                "roles": resolve_roles(palette, PROT_ROLE_MAP),
             }
 
     # --- Doric ---
@@ -156,12 +214,28 @@ def build_db() -> dict:
     if doric_dir.is_dir():
         doric = parse_doric_themes(doric_dir)
         for name, theme in doric.items():
-            palette = merge_theme(theme["colors"], theme["semantic"])
+            palette = normalize_doric(merge_theme(theme["colors"], theme["semantic"]))
             db[name] = {
                 "family": "doric",
                 "variant": theme["variant"],
-                "palette": normalize_doric(palette),
+                "palette": palette,
+                "roles": resolve_roles(palette, PROT_ROLE_MAP),
             }
+
+    # --- Flexoki ---
+    from parse_flexoki import FLEXOKI_ROLES
+    flexoki = parse_flexoki()
+    for name, theme in flexoki.items():
+        palette = merge_theme(theme["colors"], theme["semantic"])
+        entry = {
+            "family": "flexoki",
+            "variant": theme["variant"],
+            "palette": palette,
+            "roles": resolve_roles(palette, FLEXOKI_ROLES),
+        }
+        if "ghostty_theme" in theme:
+            entry["ghostty_theme"] = theme["ghostty_theme"]
+        db[name] = entry
 
     return db
 

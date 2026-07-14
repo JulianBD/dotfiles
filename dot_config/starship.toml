@@ -1,5 +1,5 @@
 # starship.toml — Pure-inspired prompt with λ symbol
-# Managed by chezmoi. Used by fish and zsh (xonsh uses its own prompt).
+# Managed by chezmoi. Used by fish and zsh .
 
 add_newline = true
 

@@ -15,26 +15,36 @@ if [ ! -f "$DOTFILES_DIR/theme_db.py" ]; then
     exit 0
 fi
 
-# Apply current theme, or default to standard-light on fresh install
+# Clone Prot's theme repos on first run so the full db is available
+SOURCES_DIR="{{ .chezmoi.homeDir }}/.local/share/dotfiles/theme-sources"
+THEME_CLI="{{ .chezmoi.homeDir }}/.local/bin/theme"
+if [ ! -d "$SOURCES_DIR" ] && [ -x "$THEME_CLI" ] && command -v git &>/dev/null; then
+    echo "Theme sources missing, running theme sync..."
+    "$THEME_CLI" sync || echo "theme sync failed, continuing with built-in themes"
+fi
+
+# Apply current theme; fresh installs default to flexoki-light, which is
+# built into the pipeline and needs no cloned sources
 CURRENT_THEME_FILE="{{ .chezmoi.homeDir }}/.config/dotfiles/current-theme"
 if [ ! -f "$CURRENT_THEME_FILE" ]; then
-    echo "No theme set, defaulting to standard-light"
-    THEME="standard-light"
+    echo "No theme set, defaulting to flexoki-light"
+    THEME="flexoki-light"
 else
     THEME=$(cat "$CURRENT_THEME_FILE" | tr -d '[:space:]')
 fi
 
+# A theme failure should not abort chezmoi apply
 echo "Applying theme: $THEME"
 python3 -c "
 import sys
 sys.path.insert(0, '$DOTFILES_DIR')
 from theme_db import build_db
-from generators import generate_all, generate_xonsh
+from generators import generate_all
 db = build_db()
 if '$THEME' not in db:
     print('Unknown theme: $THEME', file=sys.stderr)
     sys.exit(1)
 entry = db['$THEME']
-generate_all(entry['palette'], '$THEME', entry['variant'])
-generate_xonsh(entry['palette'], '$THEME', entry['variant'])
-"
+generate_all(entry['palette'], '$THEME', entry['variant'],
+             roles=entry.get('roles'), skip=entry.get('skip_generators'))
+" || echo "Warning: theme apply failed, run 'theme apply <name>' manually"

@@ -10,7 +10,7 @@
 # change (mise upgrade / mise use java@X) re-triggers this script.
 #
 # Java version: {{ output "mise" "current" "java" | trim }}
-{{ if eq .machine_type "work" -}}
+{{ if .corp_certs -}}
 set -euo pipefail
 
 ROOT_CERT="{{ .chezmoi.homeDir }}/.config/certs/ZscalerRootCertificate-2048-SHA256.crt"

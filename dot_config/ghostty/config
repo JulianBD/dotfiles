@@ -25,7 +25,7 @@ font-feature = calt
 font-feature = liga
 font-feature = dlig
 window-theme = "auto"
-theme = doric-marble
+config-file = ?theme-current
 window-padding-x = 5
 macos-titlebar-style = "hidden"
 

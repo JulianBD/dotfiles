@@ -2,7 +2,7 @@
 # Rebuild the work CA bundle after chezmoi apply.
 # Runs only on work machines. No-op if the root cert is missing
 # (e.g., before the user has copied it into place).
-{{ if eq .machine_type "work" -}}
+{{ if .corp_certs -}}
 set -eu
 
 ROOT_CERT="{{ .chezmoi.homeDir }}/.config/certs/ZscalerRootCertificate-2048-SHA256.crt"
@@ -12,8 +12,8 @@ if [ ! -f "$ROOT_CERT" ]; then
   exit 0
 fi
 
-python3 "{{ .chezmoi.homeDir }}/.config/dotfiles/certs.py" rebuild
+uv run --with certifi "{{ .chezmoi.homeDir }}/.config/dotfiles/certs.py" rebuild
 {{ else -}}
-# Non-work machine: nothing to do.
+# No corporate certs on this machine: nothing to do.
 exit 0
 {{ end -}}

@@ -17,24 +17,24 @@ The cardinal rule: edit source files here, never the deployed files under `~/`. 
 
 Any source file ending in `.tmpl` is a Go template evaluated before deployment. Template data comes from `~/.config/chezmoi/chezmoi.toml` (gitignored, generated from `.chezmoi.toml.tmpl` during `chezmoi init`).
 
-**Conditionals on machine type** — the Brewfile gates packages per machine:
+**Conditionals on feature toggles** — machines are configured by independent boolean toggles (not a machine-type enum). The Brewfile gates packages per toggle:
 ```
-{{ if eq .machine_type "work" -}}
+{{ if .work_apps -}}
 cask "microsoft-edge"
 {{ end -}}
 
-{{ if ne .machine_type "casual" -}}
+{{ if .dev_tools -}}
 brew "nushell"
 {{ end -}}
 ```
 
-**Injecting secrets from gopass** — shell configs pull secrets at template render time:
+**Injecting secrets from gopass** — each secret is gated by its own toggle, so a machine whose gopass store lacks a key simply answers "no" at init and the template never calls gopass:
 ```
-# --- Secrets (from gopass) ---
+# --- Secrets (from gopass, gated per-machine by feature toggles) ---
+{{ if .github_token -}}
 set -gx GITHUB_TOKEN {{ gopass "chezmoi/github-token" | quote }}
-{{ if eq .machine_type "work" -}}
-set -gx ATLASSIAN_API_TOKEN {{ gopass "chezmoi/atlassian-token" | quote }}
-{{ else -}}
+{{ end -}}
+{{ if .ai_keys -}}
 set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
 set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
 {{ end -}}
@@ -52,11 +52,11 @@ set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
 The trailing `-` in `{{- ... -}}` trims whitespace — use it to avoid blank lines in output. Run `chezmoi cat <target>` to see the rendered result.
 
 Available template variables (defined in `.chezmoi.toml.tmpl`):
-- `.machine_type` — `"work"`, `"dev"`, or `"casual"`
+- Feature toggles (booleans, prompted at init): `.corp_certs` (Zscaler cert bundle + cert env vars), `.atlassian` (Atlassian token), `.ai_keys` (Anthropic/OpenAI keys + aichat config), `.github_token`, `.dev_tools` (extra CLIs, VS Code + extensions), `.work_apps` (Edge, session-manager, redis-insight, awsd)
 - `.brew_prefix` — `/opt/homebrew` or `/usr/local`
 - `.hostname` — machine hostname
-- `.cert_path` — CA bundle path (work machines)
-- `{{ gopass "chezmoi/<name>" }}` — secrets from gopass (github-token on all machines; atlassian-token on work; anthropic-api-key, openai-api-key, todoist-token on personal)
+- `.cert_path` — CA bundle path (empty unless `.corp_certs`)
+- `{{ gopass "chezmoi/<name>" }}` — secrets from gopass; always gate each call behind its toggle so machines without that key can render templates
 - `.tuna_activate_keycode`, `.tuna_activate_modifiers`, `.tuna_leader_keycode`, `.tuna_leader_modifiers` — Tuna hotkey carbon key codes
 - `.chezmoi.os`, `.chezmoi.arch`, `.chezmoi.hostname` — built-in system info
 

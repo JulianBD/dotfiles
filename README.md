@@ -47,15 +47,20 @@ Edit: `mise use -g <tool>` (updates config.toml in place), then `chezmoi add ~/.
 
 Docs: [mise.jdx.dev](https://mise.jdx.dev/)
 
-### Machine types
+### Feature toggles
 
-The Brewfile uses conditionals based on `machine_type` (set during `chezmoi init`):
+Machines are configured by independent boolean toggles (prompted at `chezmoi init`), not a machine-type enum. Each toggle says yes/no to one piece of functionality:
 
-| Type | Description | Includes |
-|------|-------------|----------|
-| `work` | Work laptop (M3 Pro) | Everything: full dev tools, work casks (Edge, JIRA, AWS), VS Code |
-| `dev` | Development/learning machine (i9 MBP) | Full dev tools, no work-specific casks |
-| `casual` | Light use (M1 Air, low storage) | Core tools only, minimal casks, no build deps |
+| Toggle | Controls |
+|--------|----------|
+| `corp_certs` | Zscaler cert bundle, cert env vars, JVM truststore rebuild |
+| `atlassian` | `ATLASSIAN_API_TOKEN` from gopass |
+| `ai_keys` | `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` from gopass, aichat config |
+| `github_token` | `GITHUB_TOKEN` from gopass |
+| `dev_tools` | Build deps, extra CLIs, nushell, VS Code + extensions, raindropio |
+| `work_apps` | Edge, session-manager-plugin, redis-insight, awsd |
+
+A work laptop is typically everything except `ai_keys`; a personal dev box is `ai_keys + github_token + dev_tools`; a casual machine answers no to all.
 
 ## What's managed
 
@@ -115,7 +120,7 @@ On `chezmoi init`, you're prompted for values stored in `~/.config/chezmoi/chezm
 
 | Value | Used by | Example |
 |-------|---------|---------|
-| `machine_type` | Brewfile conditionals | `work`, `dev`, `casual` |
+| `corp_certs`, `atlassian`, `ai_keys`, `github_token`, `dev_tools`, `work_apps` | Feature toggles (see above) | `true`/`false` |
 | `tuna_activate_keycode` | Tuna hotkey | `49` |
 | `tuna_activate_modifiers` | Tuna hotkey | `256` |
 | `tuna_leader_keycode` | Tuna leader mode | `49` |

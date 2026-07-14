@@ -27,6 +27,7 @@ shell:
 
   # PATH entries relative to $HOME, prepended in order.
   paths_home:
+    - .deno/bin
     - .local/bin
     - bin
     - .ghcup/bin

@@ -1,6 +1,6 @@
 # =============================================================================
 # Brewfile — Layer 0: system packages, GUI apps, fonts
-# Machine type: {{ .machine_type }}
+# Feature toggles: dev_tools, work_apps (see .chezmoi.toml.tmpl)
 # Dev runtimes and CLI tools live in mise (~/.config/mise/config.toml)
 # =============================================================================
 
@@ -8,7 +8,7 @@
 tap "d12frosted/emacs-plus"
 tap "felixkratz/formulae"
 tap "nikitabobko/tap"
-{{ if eq .machine_type "work" -}}
+{{ if .work_apps -}}
 tap "hashicorp/tap"
 tap "radiusmethod/awsd"
 tap "theurichde/go-aws-sso"
@@ -19,7 +19,7 @@ brew "bash"
 brew "fish"
 brew "fisher"
 brew "zsh"
-{{ if ne .machine_type "casual" -}}
+{{ if .dev_tools -}}
 brew "nushell"
 {{ end -}}
 
@@ -35,7 +35,7 @@ brew "gnu-sed"
 brew "grep"
 
 # --- Build dependencies & native libs ----------------------------------------
-{{ if ne .machine_type "casual" -}}
+{{ if .dev_tools -}}
 brew "autoconf"
 brew "automake"
 brew "enchant"
@@ -57,14 +57,14 @@ brew "tmux"
 brew "carapace"
 brew "tree"
 brew "watch"
-{{ if ne .machine_type "casual" -}}
+{{ if .dev_tools -}}
 brew "argc"
 brew "fselect"
 brew "navi"
 brew "parallel"
 brew "socat"
 {{ end -}}
-{{ if eq .machine_type "work" -}}
+{{ if .work_apps -}}
 brew "radiusmethod/awsd/awsd"
 {{ end -}}
 
@@ -83,20 +83,20 @@ cask "obsidian"
 cask "spotify"
 cask "zed"
 
-{{ if ne .machine_type "casual" -}}
-# Dev + work
+{{ if .dev_tools -}}
+# dev_tools
 cask "visual-studio-code"
 {{ end -}}
 
-{{ if eq .machine_type "work" -}}
-# Work only
+{{ if .work_apps -}}
+# work_apps
 cask "microsoft-edge"
 cask "session-manager-plugin"
 cask "redis-insight"
 {{ end -}}
 
-{{ if ne .machine_type "casual" -}}
-# Dev + work extras
+{{ if .dev_tools -}}
+# dev_tools extras
 cask "raindropio"
 {{ end -}}
 
@@ -112,7 +112,7 @@ cask "font-sf-pro"
 cask "font-sketchybar-app-font"
 
 # --- VS Code extensions ------------------------------------------------------
-{{ if ne .machine_type "casual" -}}
+{{ if .dev_tools -}}
 vscode "github.copilot"
 vscode "github.copilot-chat"
 vscode "golang.go"

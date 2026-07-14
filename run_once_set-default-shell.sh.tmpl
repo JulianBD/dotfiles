@@ -1,0 +1,15 @@
+#!/bin/bash
+# Set fish as the default login shell
+set -euo pipefail
+
+FISH="{{ .brew_prefix }}/bin/fish"
+
+if ! grep -qxF "$FISH" /etc/shells; then
+    echo "Adding $FISH to /etc/shells..."
+    echo "$FISH" | sudo tee -a /etc/shells
+fi
+
+if [ "$SHELL" != "$FISH" ]; then
+    echo "Setting default shell to $FISH..."
+    chsh -s "$FISH"
+fi

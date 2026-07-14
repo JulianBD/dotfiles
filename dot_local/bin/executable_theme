@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""Manage Prot themes across all downstream apps.
+
+Shell-agnostic CLI that drives the Python theme pipeline.
+Callable from fish, xonsh, bash, or any shell with ~/.local/bin on PATH.
+
+Subcommands:
+    apply <name>   Apply a theme to all downstream configs
+    pick           Interactive fzf picker with color swatches
+    list           List all available themes
+    current        Show the currently active theme
+    sync           Clone/pull all four theme family repos
+"""
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+DOTFILES_DIR = Path.home() / ".config/dotfiles"
+STATE_FILE = DOTFILES_DIR / "current-theme"
+SOURCES_DIR = Path.home() / ".local/share/dotfiles/theme-sources"
+
+THEME_REPOS = {
+    "ef-themes": "https://github.com/protesilaos/ef-themes.git",
+    "modus-themes": "https://github.com/protesilaos/modus-themes.git",
+    "standard-themes": "https://github.com/protesilaos/standard-themes.git",
+    "doric-themes": "https://github.com/protesilaos/doric-themes.git",
+}
+
+
+def ensure_importable():
+    if str(DOTFILES_DIR) not in sys.path:
+        sys.path.insert(0, str(DOTFILES_DIR))
+
+
+def cmd_current(args):
+    if STATE_FILE.is_file():
+        print(STATE_FILE.read_text().strip())
+    else:
+        print("No theme set")
+
+
+def cmd_list(args):
+    ensure_importable()
+    from theme_db import build_db
+
+    db = build_db()
+    for name in sorted(db):
+        v = db[name]["variant"]
+        f = db[name]["family"]
+        print(f"  {name:40s} {v:5s}  ({f})")
+
+
+def cmd_sync(args):
+    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
+    for name, url in THEME_REPOS.items():
+        dest = SOURCES_DIR / name
+        if (dest / ".git").is_dir():
+            print(f"Pulling {name}...")
+            subprocess.run(["git", "-C", str(dest), "pull", "--quiet"], check=False)
+        else:
+            print(f"Cloning {name}...")
+            subprocess.run(
+                ["git", "clone", "--quiet", "--depth", "1", url, str(dest)],
+                check=False,
+            )
+    print("Sync complete")
+
+
+def cmd_apply(args):
+    name = args.name
+    ensure_importable()
+    from theme_db import build_db
+    from generators import generate_all
+
+    db = build_db()
+    if name not in db:
+        print(f"Unknown theme: {name}", file=sys.stderr)
+        print('Run "theme list" to see available themes', file=sys.stderr)
+        return 1
+
+    entry = db[name]
+    palette = entry["palette"]
+    variant = entry["variant"]
+
+    # Toggle macOS dark/light mode
+    if shutil.which("m"):
+        flag = "enable" if variant == "dark" else "disable"
+        subprocess.run(
+            ["m", "appearance", "--darkmode", flag],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+    # Update ghostty theme — written to an include file so the main
+    # config stays chezmoi-clean (config-file = ?theme-current)
+    ghostty_name = entry.get("ghostty_theme", name)
+    theme_file = Path.home() / ".config/ghostty/theme-current"
+    theme_file.write_text(f"theme = {ghostty_name}\n")
+
+    # Run generators
+    roles = entry.get("roles")
+    skip = entry.get("skip_generators")
+    generate_all(palette, name, variant, roles=roles, skip=skip)
+
+    # Record current theme
+    DOTFILES_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(name + "\n")
+
+    print(f"Applied theme: {name} ({variant})")
+
+
+def cmd_pick(args):
+    ensure_importable()
+    from theme_db import build_db
+
+    db = build_db()
+
+    lines = []
+    for name in sorted(db):
+        p = db[name]["palette"]
+        v = db[name]["variant"]
+        swatch_keys = [
+            "bg-main", "fg-main", "red", "green", "yellow", "blue", "magenta", "cyan",
+        ]
+        swatches = ""
+        for k in swatch_keys:
+            if k in p:
+                h = p[k].lstrip("#")
+                r, g, b = int(h[:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+                swatches += f"\033[38;2;{r};{g};{b}m\u2588\u2588\033[0m"
+        lines.append(f"{name:40s} {v:5s}  {swatches}")
+
+    try:
+        result = subprocess.run(
+            ["fzf", "--ansi", "--prompt", "theme > ", "--no-multi"],
+            input="\n".join(lines),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return
+        chosen = result.stdout.strip().split()[0]
+        if chosen:
+            args.name = chosen
+            cmd_apply(args)
+    except FileNotFoundError:
+        print("fzf not installed", file=sys.stderr)
+        return 1
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="theme", description="Manage Prot themes across all downstream apps"
+    )
+    sub = parser.add_subparsers(dest="command")
+
+    sub.add_parser("current", help="Show the currently active theme")
+    sub.add_parser("list", help="List all available themes")
+    sub.add_parser("sync", help="Clone/pull all theme family repos")
+    sub.add_parser("pick", help="Interactive fzf picker with color swatches")
+
+    p_apply = sub.add_parser("apply", help="Apply a theme to all downstream configs")
+    p_apply.add_argument("name", help="Theme name (e.g. modus-operandi, ef-autumn)")
+
+    args = parser.parse_args()
+
+    dispatch = {
+        "current": cmd_current,
+        "list": cmd_list,
+        "sync": cmd_sync,
+        "apply": cmd_apply,
+        "pick": cmd_pick,
+    }
+
+    if args.command in dispatch:
+        result = dispatch[args.command](args)
+        sys.exit(result or 0)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

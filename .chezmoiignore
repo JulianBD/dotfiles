@@ -26,9 +26,10 @@ LICENSE
 .config/fish/conf.d/_pure_init.fish
 .config/fish/conf.d/pure.fish
 
-# Fish: machine-local state
+# Fish: machine-local state (but keep repo-managed completions)
 .config/fish/fish_variables
-.config/fish/completions
+.config/fish/completions/*
+!.config/fish/completions/theme.fish
 
 # Fish: tool-generated conf.d
 .config/fish/conf.d/fish_frozen_key_bindings.fish
@@ -42,6 +43,7 @@ LICENSE
 # Theme pipeline: runtime state (managed by prot-theme)
 .config/dotfiles/themes.json
 .config/dotfiles/current-theme
+.config/dotfiles/__pycache__
 
 # Aerospace: editor state
 .config/aerospace/.opencode
@@ -55,14 +57,13 @@ Library/Application Support/Tuna/PlugIns
 Library/Application Support/Tuna/PlugInsDev
 Library/Application Support/Tuna/ProxyHistory.plist
 
-# Personal-only: configs that need API keys not in work gopass
-{{ if eq .machine_type "work" -}}
+# aichat needs the AI API keys — only deploy where the toggle says so
+{{ if not .ai_keys -}}
 .config/aichat
-.config/todoist
 {{ end -}}
 
-# Work-only: Zscaler root cert and generated bundle
-{{ if ne .machine_type "work" -}}
+# Zscaler root cert and generated bundle — corp_certs machines only
+{{ if not .corp_certs -}}
 .config/certs
 {{ end -}}
 # Generated bundle is never tracked (built by `dotfiles:certs:rebuild`)
@@ -70,3 +71,7 @@ Library/Application Support/Tuna/ProxyHistory.plist
 
 # OS junk
 .DS_Store
+
+# Ghostty: theme pipeline outputs (theme CLI regenerates)
+.config/ghostty/themes
+.config/ghostty/theme-current

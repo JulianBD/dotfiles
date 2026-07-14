@@ -26,11 +26,14 @@ mise activate fish | source
 set -gx {{ $k }} {{ $v | quote }}
 {{ end -}}
 
-# --- Secrets (from gopass) ---
+# --- Secrets (from gopass, gated per-machine by feature toggles) ---
+{{ if .github_token -}}
 set -gx GITHUB_TOKEN {{ gopass "chezmoi/github-token" | quote }}
-{{ if eq .machine_type "work" -}}
+{{ end -}}
+{{ if .atlassian -}}
 set -gx ATLASSIAN_API_TOKEN {{ gopass "chezmoi/atlassian-token" | quote }}
-{{ else -}}
+{{ end -}}
+{{ if .ai_keys -}}
 set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
 set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
 {{ end -}}
@@ -40,6 +43,7 @@ set -gx SSL_CERT_FILE {{ .cert_path | quote }}
 set -gx NODE_EXTRA_CA_CERTS {{ .cert_path | quote }}
 set -gx REQUESTS_CA_BUNDLE {{ .cert_path | quote }}
 set -gx AWS_CA_BUNDLE {{ .cert_path | quote }}
+set -gx DENO_CERT {{ .cert_path | quote }}
 # JVM: zscaler is injected directly into the JDK's cacerts by
 # run_onchange_rebuild-jvm-truststore.sh, so no JAVA_TOOL_OPTIONS needed.
 {{ end -}}

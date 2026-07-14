@@ -1,5 +1,13 @@
 {{- $hostname := promptStringOnce . "hostname" "Hostname" -}}
-{{- $machineType := promptChoiceOnce . "machine_type" "Machine type — type w/d/c to pick" (list "work" "dev" "casual") -}}
+
+{{/* Feature toggles — each answers "does this machine have/want X?" */}}
+{{/* Secrets toggles imply the key exists in this machine's gopass store. */}}
+{{- $corpCerts := promptBoolOnce . "corp_certs" "Corporate TLS interception (Zscaler cert bundle)? (y/n)" -}}
+{{- $atlassian := promptBoolOnce . "atlassian" "Atlassian API token in gopass? (y/n)" -}}
+{{- $aiKeys := promptBoolOnce . "ai_keys" "Anthropic/OpenAI API keys in gopass? (y/n)" -}}
+{{- $githubToken := promptBoolOnce . "github_token" "GitHub token in gopass? (y/n)" -}}
+{{- $devTools := promptBoolOnce . "dev_tools" "Dev tooling (extra CLIs, VS Code + extensions)? (y/n)" -}}
+{{- $workApps := promptBoolOnce . "work_apps" "Work apps (Edge, session-manager, redis-insight, awsd)? (y/n)" -}}
 
 {{/* Tuna: carbon key codes */}}
 {{- $tunaActivateKeyCode := promptStringOnce . "tuna_activate_keycode" "Tuna activate carbonKeyCode (e.g., 49)" -}}
@@ -7,16 +15,20 @@
 {{- $tunaLeaderKeyCode := promptStringOnce . "tuna_leader_keycode" "Tuna leader carbonKeyCode (e.g., 49)" -}}
 {{- $tunaLeaderModifiers := promptStringOnce . "tuna_leader_modifiers" "Tuna leader carbonModifiers (e.g., 4096)" -}}
 
-{{/* Work environment — cert bundle lives at a fixed path under .config, */}}
-{{/* built by `dotfiles:certs:rebuild`. Only populated on work machines.   */}}
+{{/* Cert bundle path — fixed location, only populated when corp_certs. */}}
 {{- $certPath := "" -}}
-{{- if eq $machineType "work" -}}
+{{- if $corpCerts -}}
 {{-   $certPath = joinPath .chezmoi.homeDir ".config/certs/bundle.pem" -}}
 {{- end -}}
 
 [data]
   hostname = {{ $hostname | quote }}
-  machine_type = {{ $machineType | quote }}
+  corp_certs = {{ $corpCerts }}
+  atlassian = {{ $atlassian }}
+  ai_keys = {{ $aiKeys }}
+  github_token = {{ $githubToken }}
+  dev_tools = {{ $devTools }}
+  work_apps = {{ $workApps }}
   brew_prefix = {{ if eq .chezmoi.arch "arm64" }}"/opt/homebrew"{{ else }}"/usr/local"{{ end }}
   tuna_activate_keycode = {{ $tunaActivateKeyCode | quote }}
   tuna_activate_modifiers = {{ $tunaActivateModifiers | quote }}
