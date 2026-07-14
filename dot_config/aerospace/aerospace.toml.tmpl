@@ -9,7 +9,10 @@ after-login-command = []
 # You can use it to add commands that run after AeroSpace startup.
 # 'after-startup-command' is run after 'after-login-command'
 # Available commands : https://nikitabobko.github.io/AeroSpace/commands
-after-startup-command = ['exec-and-forget sketchybar']
+# sketchybar is owned by brew services — do NOT launch it here, a second
+# instance fights the service over the bar (hangs / blank bar). Just nudge
+# the running one so workspace highlights are correct after a restart.
+after-startup-command = ['exec-and-forget {{ .brew_prefix }}/bin/sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$(aerospace list-workspaces --focused) PREV_WORKSPACE=']
 
 # Start AeroSpace at login
 start-at-login = false
@@ -103,7 +106,7 @@ On non-notch machines, all monitors start at literal y=0.
 {{ $topGapTrueTop := 52 }}{{/* 10 gap + 32 menubar + 10 padding */}}
 {{ $topGapBuiltIn := $topGapTrueTop }}
 {{/* Only the work M3 Pro built-in display needs notch-safe behavior */}}
-{{ if and (eq .machine_type "work") (eq .chezmoi.hostname "elsphim-403468") }}{{ $topGapBuiltIn = 20 }}{{ end }}
+{{ if eq .chezmoi.hostname "elsphim-403468" }}{{ $topGapBuiltIn = 20 }}{{ end }}
 outer.top = [
   { monitor."^built-in retina display$" = {{ $topGapBuiltIn }} },
   {{ $topGapTrueTop }}
@@ -207,6 +210,10 @@ alt-shift-period = 'move-node-to-workspace D4 --focus-follows-window'
 alt-tab = 'workspace-back-and-forth'
 alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
 
+# Move ALL windows in the focused workspace to another workspace:
+# alt-shift-m, then the target workspace key (same layout as alt-<key>)
+alt-shift-m = 'mode moveall'
+
 # Comms live in a dedicated Zen window (Slack/Outlook/Teams web)
 [[on-window-detected]]
     if.app-id = 'app.zen-browser.zen'
@@ -217,11 +224,20 @@ alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
     if.app-id = 'com.spotify.client'
     run = ['layout tiling', 'move-node-to-workspace C2']
 
-[[on-window-detected]]
-    if.app-id = 'com.microsoft.Outlook'
-    if.window-title-regex-substring = 'Reminder'
-    run = ['layout floating']
 
+# 'moveall' binding mode: pick the destination for the whole workspace.
+# Keys mirror the alt-<key> workspace layout.
+[mode.moveall.binding]
+esc = 'mode main'
+{{ range $pair := list
+  "1 A1" "2 A2" "3 A3" "4 A4"
+  "5 B1" "6 B2" "7 B3" "8 B4"
+  "9 C1" "0 C2" "leftSquareBracket C3" "rightSquareBracket C4"
+  "semicolon D1" "quote D2" "comma D3" "period D4" -}}
+{{- $key := index (splitList " " $pair) 0 -}}
+{{- $ws := index (splitList " " $pair) 1 }}
+{{ $key }} = ['exec-and-forget ~/.config/aerospace/move-all-windows.sh {{ $ws }}', 'mode main']
+{{- end }}
 
 # 'service' binding mode declaration.
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes

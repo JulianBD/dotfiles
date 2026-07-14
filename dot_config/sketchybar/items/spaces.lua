@@ -88,7 +88,7 @@ local function create_items(workspaces, display_id)
         drawing = "on",
       },
       icon = { drawing = "off" },
-      click_script = "aerospace workspace " .. ws,
+      click_script = "aerospace workspace " .. ws .. " 2>/dev/null",
     })
 
     space_items[ws] = item
@@ -163,26 +163,48 @@ local function highlight(new_ws)
   end
 end
 
--- Update app icons for a workspace
-local function update_icons(ws)
+-- Apply the icon set for one workspace item
+local function set_ws_icons(ws, apps)
   local item = space_items[ws]
   if not item then return end
+  local icon_str = ""
+  for _, app in ipairs(apps) do
+    icon_str = icon_str .. app_icon(app)
+  end
+  if icon_str == "" then
+    local pl = ws == "C2" and 8 or 6
+    local pr = ws == "C2" and 8 or 10
+    item:set({ icon = { drawing = "off" }, label = { font = "Aporetic Sans:Bold:14.0", padding_left = pl, padding_right = pr } })
+  else
+    item:set({ icon = { string = icon_str, font = "sketchybar-app-font:Regular:14.0", color = colors.text_muted, padding_left = 6, padding_right = 0, drawing = "on" }, label = { font = "Aporetic Sans:Bold:10.0", padding_left = 2, padding_right = 6 } })
+  end
+end
+
+-- Refresh app icons for ALL workspaces with a single aerospace call.
+-- One exec (~100ms) instead of one per workspace — icons stay current
+-- everywhere and the bar never queues up a burst of shell-outs.
+local refresh_in_flight = false
+local function refresh_all_icons()
+  if refresh_in_flight then return end
+  refresh_in_flight = true
   sbar.exec(
-    "aerospace list-windows --workspace " .. ws .. " 2>/dev/null | awk -F'|' '{gsub(/^ *| *$/, \"\", $2); print $2}' | sort -u | grep -v '^$'",
+    "aerospace list-windows --all --format '%{workspace}|%{app-name}' 2>/dev/null",
     function(result)
-      if not result or result == "" then
-        local pl = ws == "C2" and 8 or 6
-        local pr = ws == "C2" and 8 or 10
-        item:set({ icon = { drawing = "off" }, label = { font = "Aporetic Sans:Bold:14.0", padding_left = pl, padding_right = pr } })
-      else
-        local icon_str = ""
-        for raw_app in result:gmatch("[^\r\n]+") do
-          local app = raw_app:match("^%s*(.-)%s*$")
-          if app ~= "" then icon_str = icon_str .. app_icon(app) end
+      refresh_in_flight = false
+      local by_ws = {}
+      for line in (result or ""):gmatch("[^\r\n]+") do
+        local ws, app = line:match("^%s*(.-)%s*|%s*(.-)%s*$")
+        if ws and app and app ~= "" then
+          by_ws[ws] = by_ws[ws] or {}
+          local seen = false
+          for _, a in ipairs(by_ws[ws]) do
+            if a == app then seen = true break end
+          end
+          if not seen then table.insert(by_ws[ws], app) end
         end
-        if icon_str ~= "" then
-          item:set({ icon = { string = icon_str, font = "sketchybar-app-font:Regular:14.0", color = colors.text_muted, padding_left = 6, padding_right = 0, drawing = "on" }, label = { font = "Aporetic Sans:Bold:10.0", padding_left = 2, padding_right = 6 } })
-        end
+      end
+      for _, ws in ipairs(all_workspaces) do
+        set_ws_icons(ws, by_ws[ws] or {})
       end
     end
   )
@@ -194,11 +216,14 @@ handler:subscribe("aerospace_workspace_change", function(env)
   local focused = env.FOCUSED_WORKSPACE or ""
   if focused ~= "" then
     highlight(focused)
-    update_icons(focused)
-    if env.PREV_WORKSPACE and env.PREV_WORKSPACE ~= "" then
-      update_icons(env.PREV_WORKSPACE)
-    end
   end
+  refresh_all_icons()
+end)
+
+-- Windows open/close/move without a workspace switch; front-app changes are
+-- a cheap proxy for "something changed", and the refresh is a single exec.
+handler:subscribe("front_app_switched", function(_)
+  refresh_all_icons()
 end)
 
 -- Display management: move C+D between monitors
@@ -258,5 +283,5 @@ sbar.exec("aerospace list-workspaces --focused", function(result)
   local focused = (result or ""):match("^%s*(.-)%s*$")
   if focused ~= "" then highlight(focused) end
 end)
-for _, ws in ipairs(all_workspaces) do update_icons(ws) end
+refresh_all_icons()
 check_displays()

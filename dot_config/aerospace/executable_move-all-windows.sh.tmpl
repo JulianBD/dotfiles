@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Move every window in the focused workspace to the target workspace, then
+# follow focus there. Aerospace has no built-in "move whole root" command.
+# Windows land in list order (not spatial order) — good enough for the rare
+# use case; a layout-preserving version needs CG geometry and is slow.
+set -euo pipefail
+
+TARGET="${1:?usage: move-all-windows.sh <target-workspace>}"
+AEROSPACE="{{ .brew_prefix }}/bin/aerospace"
+
+FOCUSED=$("$AEROSPACE" list-workspaces --focused)
+[ "$FOCUSED" = "$TARGET" ] && exit 0
+
+"$AEROSPACE" list-windows --workspace focused --format '%{window-id}' \
+  | while read -r id; do
+      [ -n "$id" ] && "$AEROSPACE" move-node-to-workspace --window-id "$id" "$TARGET"
+    done
+
+"$AEROSPACE" workspace "$TARGET"
