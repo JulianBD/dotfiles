@@ -5,7 +5,7 @@ local battery = sbar.add("item", "battery", {
   position = "right",
   update_freq = 120,
   icon = {
-    font = "Hack Nerd Font:Regular:14.0",
+    font = "Monaspace Argon NF:Regular:14.0",
     drawing = "on",
   },
 })

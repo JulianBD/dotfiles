@@ -62,11 +62,18 @@ The DWIM behaviour of this command is as follows:
   :config
   ;; Set your favourite font family and height here.  The :height is
   ;; 10x the point size you most commonly find on other applications.
-  (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 160)
+  ;;
+  ;; "Monaspace Argon Frozen", not "...NF": Monaspace's programming
+  ;; ligatures (=>, ->, etc.) live in OpenType stylistic sets ss01-ss10,
+  ;; which are off by default and which Emacs cannot toggle at runtime
+  ;; (see the ligature.el use-package below). The Frozen build bakes
+  ;; those sets in as the font's default rendering instead. It has no
+  ;; Nerd Font icon glyphs, but nothing in this config uses those.
+  (set-face-attribute 'default nil :family "Monaspace Argon Frozen" :height 160)
   ;; Set your favourite font for elements that are designed to always
   ;; be monospaced.  The height SHOULD BE a floating point, which is
   ;; interpreted as relative to the `default'.
-  (set-face-attribute 'fixed-pitch nil :family "Aporetic Serif Mono" :height 1.0)
+  (set-face-attribute 'fixed-pitch nil :family "Monaspace Argon Frozen" :height 1.0)
   ;; Same as above for proportionately spaced elements.  Make any
   ;; buffer proportionately spaced by enabling the `variable-pitch-mode'.
   ;;
@@ -282,6 +289,25 @@ The DWIM behaviour of this command is as follows:
 (use-package ef-themes
   :ensure t
   :vc (:url "https://github.com/protesilaos/ef-themes.git" :rev :newest))
+
+;; Ligatures, for the default face's Monaspace Argon Frozen (see above).
+;; https://github.com/mickeynp/ligature.el
+(use-package ligature
+  :ensure t
+  :config
+  ;; Monaspace's own stylistic-set groupings (ss01-ss10), collapsed into
+  ;; one list since ligature.el has no notion of "sets" -- it just
+  ;; matches strings. Baked into Frozen's default rendering; this list
+  ;; only tells Emacs which character sequences to compose into one
+  ;; glyph cluster so cursor movement and selection behave correctly.
+  (ligature-set-ligatures
+   'prog-mode
+   '("=>" "->" "->>" "<-" "<<-" "<=" ">=" "==" "===" "!=" "!=="
+     "&&" "||" "??" "?." "?:" "::" ":=" "|>" "<|" "<|>"
+     "..." ".." "**" "***" "++" "--" "//" "///" "||" "|||"
+     "<!--" "-->" "</" "/>" "<>" "</>"
+     "www" "##" "###" "####"))
+  (global-ligature-mode t))
 
 ;; Dependencies
 (use-package dash :ensure t)

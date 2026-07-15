@@ -101,15 +101,14 @@ cask "raindropio"
 {{ end -}}
 
 # --- Fonts -------------------------------------------------------------------
-cask "font-aporetic"
+cask "font-aporetic"                # UI/prose only (Zed ui_font, Emacs variable-pitch)
 cask "font-atkinson-hyperlegible"
 cask "font-atkinson-hyperlegible-mono"
 cask "font-atkinson-hyperlegible-next"
-cask "font-caskaydia-mono-nerd-font"
-cask "font-hack-nerd-font"
-cask "font-jetbrains-mono-nerd-font"
-cask "font-sf-pro"
-cask "font-sketchybar-app-font"
+cask "font-monaspace-nf"            # Monaspace Argon NF: monospace/coding font everywhere
+cask "font-monaspace-frozen"        # Monaspace Argon Frozen: Emacs-only, ligature stylistic
+                                     # sets baked in (ligature.el can't toggle them at runtime)
+cask "font-sketchybar-app-font"     # app-icon glyphs, not a text font
 
 # --- VS Code extensions ------------------------------------------------------
 {{ if .dev_tools -}}

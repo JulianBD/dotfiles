@@ -19,9 +19,22 @@
   "helix_mode": false,
   "terminal": {
     "dock": "bottom",
-    "font_family": "AporeticSansMono Nerd Font",
+    "font_family": "Monaspace Argon NF",
     "font_weight": 400,
-    "font_features": { "calt": true },
+    "font_features": {
+      "calt": true,
+      "liga": true,
+      "ss01": true,
+      "ss02": true,
+      "ss03": true,
+      "ss04": true,
+      "ss05": true,
+      "ss06": true,
+      "ss07": true,
+      "ss08": true,
+      "ss09": true,
+      "ss10": true
+    },
     "line_height": { "custom": 1.0 },
     "option_as_meta": true
   },
@@ -37,7 +50,7 @@
   "ui_font_size": 16,
   "ui_font_family": "Aporetic Sans",
   "buffer_font_size": 16,
-  "buffer_font_family": "AporeticSansMono Nerd Font",
+  "buffer_font_family": "Monaspace Argon NF",
   "buffer_font_features": {
     "calt": true,
     "liga": true,

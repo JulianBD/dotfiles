@@ -5,42 +5,7 @@
     include = ["helix-master/runtime/**"]
     refreshPeriod = "168h"
 
-["Library/Fonts/AporeticSansMonoNerdFont-Regular.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSansMonoNerdFont-Regular.ttf"
-    refreshPeriod = "720h"
-
-["Library/Fonts/AporeticSansMonoNerdFont-Bold.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSansMonoNerdFont-Bold.ttf"
-    refreshPeriod = "720h"
-
-["Library/Fonts/AporeticSansMonoNerdFont-Italic.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSansMonoNerdFont-Italic.ttf"
-    refreshPeriod = "720h"
-
-["Library/Fonts/AporeticSansMonoNerdFont-BoldItalic.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSansMonoNerdFont-BoldItalic.ttf"
-    refreshPeriod = "720h"
-
-["Library/Fonts/AporeticSerifMonoNerdFont-Regular.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSerifMonoNerdFont-Regular.ttf"
-    refreshPeriod = "720h"
-
-["Library/Fonts/AporeticSerifMonoNerdFont-Bold.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSerifMonoNerdFont-Bold.ttf"
-    refreshPeriod = "720h"
-
-["Library/Fonts/AporeticSerifMonoNerdFont-Italic.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSerifMonoNerdFont-Italic.ttf"
-    refreshPeriod = "720h"
-
-["Library/Fonts/AporeticSerifMonoNerdFont-BoldItalic.ttf"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/Echinoidea/Aporetic-Nerd-Font/master/AporeticSerifMonoNerdFont-BoldItalic.ttf"
-    refreshPeriod = "720h"
+# Monospace/coding font (Monaspace Argon NF) comes from the
+# font-monaspace-nf Homebrew cask, not an external file pin — see
+# dot_Brewfile.tmpl. AporeticSansMono/AporeticSerifMono are no longer
+# used anywhere in this config.

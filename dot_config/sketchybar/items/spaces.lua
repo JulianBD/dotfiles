@@ -80,7 +80,7 @@ local function create_items(workspaces, display_id)
       },
       label = {
         string = keybind_label[ws] or ws,
-        font = "Aporetic Sans:Bold:10.0",
+        font = "Monaspace Argon NF:Bold:10.0",
         color = faint(colors.text_muted),
         padding_left = 4,
         padding_right = 6,
@@ -174,9 +174,9 @@ local function set_ws_icons(ws, apps)
   if icon_str == "" then
     local pl = ws == "C2" and 8 or 6
     local pr = ws == "C2" and 8 or 10
-    item:set({ icon = { drawing = "off" }, label = { font = "Aporetic Sans:Bold:14.0", padding_left = pl, padding_right = pr } })
+    item:set({ icon = { drawing = "off" }, label = { font = "Monaspace Argon NF:Bold:14.0", padding_left = pl, padding_right = pr } })
   else
-    item:set({ icon = { string = icon_str, font = "sketchybar-app-font:Regular:14.0", color = colors.text_muted, padding_left = 6, padding_right = 0, drawing = "on" }, label = { font = "Aporetic Sans:Bold:10.0", padding_left = 2, padding_right = 6 } })
+    item:set({ icon = { string = icon_str, font = "sketchybar-app-font:Regular:14.0", color = colors.text_muted, padding_left = 6, padding_right = 0, drawing = "on" }, label = { font = "Monaspace Argon NF:Bold:10.0", padding_left = 2, padding_right = 6 } })
   end
 end
 
