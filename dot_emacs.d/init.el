@@ -1,3 +1,5 @@
+;;; init.el -*- lexical-binding: t; no-byte-compile: t; -*-
+
 ;;; Sensible defaults that are not too intrusive and focus on common use-cases.  By Protesilaos on 2026-04-30.
 
 ;; These are not all of my favourite options.  I am not even including
@@ -28,6 +30,21 @@
   (setq package-archives
         '(("melpa" . "https://melpa.org/packages/")))
   (setq url-queue-timeout 10))
+
+;;;; Patches for upstream bugs
+;;
+;; Workarounds for third-party package bugs live in "patches.el", written
+;; with el-patch so each one stays a verifiable diff against upstream
+;; rather than a silent redefinition. After upgrading packages, run
+;; `M-x el-patch-validate-all' -- it re-reads the installed sources and
+;; reports any patch whose original no longer matches, which is the signal
+;; that the bug was fixed (delete the patch) or the function was rewritten
+;; (rewrite the patch).
+(use-package el-patch
+  :ensure t
+  :demand t
+  :config
+  (load (locate-user-emacs-file "patches.el") nil :nomessage))
 
 ;;;; General options
 (use-package emacs
@@ -290,6 +307,13 @@ The DWIM behaviour of this command is as follows:
   :ensure t
   :vc (:url "https://github.com/protesilaos/ef-themes.git" :rev :newest))
 
+(use-package flexoki-themes
+  :ensure t
+  :custom
+  (flexoki-themes-use-bold-keywords t)
+  (flexoki-themes-use-bold-builtins t)
+  (flexoki-themes-use-italic-comments t))
+
 ;; Ligatures, for the default face's Monaspace Argon Frozen (see above).
 ;; https://github.com/mickeynp/ligature.el
 (use-package ligature
@@ -314,34 +338,100 @@ The DWIM behaviour of this command is as follows:
 (use-package avy :ensure t)
 (use-package pcre2el :ensure t)
 (use-package ultra-scroll :ensure t)
+(use-package s :ensure t)
 
+;; Hel and friends now live in the helheim-emacs org (moved from
+;; anuvyklack/*). None of them are on MELPA yet -- there is no recipe in
+;; melpa/recipes and nothing in archive-contents -- so they come from
+;; GitHub via :vc.
+;;
+;; Pinned, NOT tracking main. Commit 560d4b0 (2026-07-14, "wip(integration):
+;; move keys to `hel-collection' package") ripped the keybindings for
+;; compile / grep / wgrep / occur / xref / diff / calendar / corfu /
+;; consult / embark / dired out of hel-integration.el and into a separate
+;; hel-collection package. That package exists but is 8 days old, has no
+;; tags, and ships no dired module -- so main is mid-migration and leaves
+;; several modes with no bindings at all.
+;;
+;; e2c818d is the last commit before that split: every integration still
+;; in-tree, and it already contains the fixes that matter (93c88d8
+;; "multiple cursors keys are lost on major mode change" and the scroll
+;; fixes). It is 3 commits behind main, two of them cosmetic.
+;;
+;; Revisit once hel-collection stabilises and grows a dired module; then
+;; this becomes :rev "main" plus a hel-collection use-package calling
+;; (hel-collection-init) -- registered BEFORE the other hel packages, since
+;; it only installs `with-eval-after-load' forms and Emacs runs those in
+;; registration order.
 (use-package hel
   :ensure t
-  :vc (:url "https://github.com/anuvyklack/hel.git" :rev "main")
+  :vc (:url "https://github.com/helheim-emacs/hel.git"
+       :rev "e2c818d91d6d27328f63b59d3193e71fa9d5b36b")
   :custom (inhibit-startup-screen t)
   :config (hel-mode))
 
 (use-package hel-leader
   :ensure t
-  :vc (:url "https://github.com/anuvyklack/hel-leader.git" :rev "main")
-  :after org)
+  :vc (:url "https://github.com/helheim-emacs/hel-leader.git" :rev "main")
+  :after hel)
 
 (use-package hel-org
   :ensure t
-  :vc (:url "https://github.com/anuvyklack/hel-org.git" :rev "main")
-  :after org)
+  :vc (:url "https://github.com/helheim-emacs/hel-org.git" :rev "main")
+  :after (hel org))
 
 (use-package ghostel
   :ensure t)
 
 (use-package hel-ghostel
   :ensure t
-  :vc (:url "https://github.com/anuvyklack/hel-ghostel.git" :rev "main")
+  :vc (:url "https://github.com/helheim-emacs/hel-ghostel.git" :rev "main")
   :after (ghostel hel))
+
+;;;; Markdown
+;;
+;; `markdown-ts-mode' ships with Emacs 31 (lisp/textmodes/markdown-ts-mode.el)
+;; but is wired up to exactly nothing: it has no autoload cookie, it never
+;; touches `auto-mode-alist', and it is absent from
+;; `treesit-major-mode-remap-alist' -- so `treesit-enabled-modes' does not
+;; reach it either (that option only remaps legacy modes to ts modes, and
+;; there is no built-in legacy markdown-mode to remap from). Hence the
+;; explicit :mode below; without it ".md" opens in Fundamental mode.
+;;
+;; It needs TWO grammars, `markdown' and `markdown-inline' -- block
+;; structure and inline structure are separate parsers. Both are already
+;; installed under "tree-sitter/" here. The mode file registers their
+;; `treesit-language-source-alist' recipes itself (pinned to commit
+;; 413285231, both from the same repo but different :source-dir), so
+;; `M-x markdown-ts-mode-install-parsers' is all that is needed on a new
+;; machine -- with a prefix argument it also grabs html, yaml and toml,
+;; which markdown-ts-mode uses for embedded code blocks and for YAML/TOML
+;; frontmatter.
+(use-package markdown-ts-mode
+  :ensure nil ; built in
+  :mode (("\\.md\\'" . markdown-ts-mode)
+         ("\\.markdown\\'" . markdown-ts-mode)))
 
 (use-package nael
   :ensure t
   :hook
-  ((nael-mode . abbreve-mode)
+  ((nael-mode . abbrev-mode)
    (nael-mode . eglot-ensure)))
-  
+
+(use-package gptel
+  :ensure t
+  ;; :vc ( :url "https://github.com/karthink/gptel.git" :rev "master")
+  :config
+  ;; Uses the default `authorization-code' login method. Upstream's
+  ;; redirect_uri is double-encoded and OpenAI rejects it before any
+  ;; account is involved; see the gptel section of "patches.el" for the
+  ;; el-patch that fixes it. The `device' method is unaffected by that bug
+  ;; but is not enabled on this account.
+  (setq gptel-model 'gpt-5.4-mini
+      gptel-backend (gptel-make-openai-oauth "ChatGPT-Enterprise")))
+
+(use-package gptel-agent
+  :ensure t
+  ;; :vc ( :url "https://github.com/karthink/gptel-agent" :rev "master")
+  :config (gptel-agent-update)
+  :after gptel)         ;Read files from agents directories
