@@ -31,6 +31,9 @@
         '(("melpa" . "https://melpa.org/packages/")))
   (setq url-queue-timeout 10))
 
+;; Log native-comp warnings to *Warnings* without popping it open (nil = drop, t = pop-ups).
+(setq native-comp-async-report-warnings-errors 'silent)
+
 ;;;; Patches for upstream bugs
 ;;
 ;; Workarounds for third-party package bugs live in "patches.el", written
@@ -80,17 +83,14 @@ The DWIM behaviour of this command is as follows:
   ;; Set your favourite font family and height here.  The :height is
   ;; 10x the point size you most commonly find on other applications.
   ;;
-  ;; "Monaspace Argon Frozen", not "...NF": Monaspace's programming
-  ;; ligatures (=>, ->, etc.) live in OpenType stylistic sets ss01-ss10,
-  ;; which are off by default and which Emacs cannot toggle at runtime
-  ;; (see the ligature.el use-package below). The Frozen build bakes
-  ;; those sets in as the font's default rendering instead. It has no
-  ;; Nerd Font icon glyphs, but nothing in this config uses those.
-  (set-face-attribute 'default nil :family "Monaspace Argon Frozen" :height 160)
+  ;; Fira Code keeps its programming ligatures (=>, ->, etc.) in calt,
+  ;; on by default, so no "Frozen"-style special build is needed --
+  ;; ligature.el (below) handles composition and the font does the rest.
+  (set-face-attribute 'default nil :family "FiraCode Nerd Font" :height 160)
   ;; Set your favourite font for elements that are designed to always
   ;; be monospaced.  The height SHOULD BE a floating point, which is
   ;; interpreted as relative to the `default'.
-  (set-face-attribute 'fixed-pitch nil :family "Monaspace Argon Frozen" :height 1.0)
+  (set-face-attribute 'fixed-pitch nil :family "FiraCode Nerd Font" :height 1.0)
   ;; Same as above for proportionately spaced elements.  Make any
   ;; buffer proportionately spaced by enabling the `variable-pitch-mode'.
   ;;
@@ -209,6 +209,54 @@ The DWIM behaviour of this command is as follows:
   ;; else in Emacs which just uses the `default' face.
   (setq shr-use-fonts nil))
 
+;;;; Visual ergonomics for editing text
+
+;; Centre prose in a readable column. text-mode only (covers org + markdown), not code.
+(use-package olivetti
+  :ensure t
+  :hook (text-mode-hook . olivetti-mode)
+  :custom
+  (olivetti-body-width 80))
+
+;; Highlight the line point is on.
+(use-package hl-line
+  :ensure nil
+  :config
+  (global-hl-line-mode 1))
+
+;; Wrap at word boundaries instead of the default mid-character break.
+(use-package simple
+  :ensure nil
+  :config
+  (global-visual-line-mode 1)
+  ;; Treat ". " as a sentence end so M-q / M-a / M-e handle single-spaced prose.
+  (setq sentence-end-double-space nil))
+
+;; Align wrapped continuation lines under the text they continue (Emacs 30+).
+(use-package emacs
+  :ensure nil
+  :config
+  (global-visual-wrap-prefix-mode 1))
+
+;; Reopen a file at the position you left it.
+(use-package saveplace
+  :ensure nil
+  :config
+  (save-place-mode 1))
+
+;; Show an offscreen opening delimiter in an overlay.
+(use-package paren
+  :ensure nil
+  :config
+  (setq show-paren-context-when-offscreen 'overlay)
+  (setq show-paren-delay 0))
+
+;; Strip down buffers with very long lines (minified JS, JSON dumps) to stay responsive.
+(use-package so-long
+  :ensure nil
+  :config
+  (global-so-long-mode 1))
+
 ;;;; Control the display of common ancillary windows
 
 ;; Always focus common ancillary windows.  Place them in a window
@@ -314,23 +362,30 @@ The DWIM behaviour of this command is as follows:
   (flexoki-themes-use-bold-builtins t)
   (flexoki-themes-use-italic-comments t))
 
-;; Ligatures, for the default face's Monaspace Argon Frozen (see above).
+;; Ligatures, for the default face's Fira Code (see above).
 ;; https://github.com/mickeynp/ligature.el
 (use-package ligature
   :ensure t
   :config
-  ;; Monaspace's own stylistic-set groupings (ss01-ss10), collapsed into
-  ;; one list since ligature.el has no notion of "sets" -- it just
-  ;; matches strings. Baked into Frozen's default rendering; this list
-  ;; only tells Emacs which character sequences to compose into one
-  ;; glyph cluster so cursor movement and selection behave correctly.
+  ;; The canonical Fira Code list from the ligature.el README. The font
+  ;; carries the ligature glyphs in calt; this list only tells Emacs
+  ;; which character sequences to compose into one glyph cluster so
+  ;; cursor movement and selection behave correctly.
   (ligature-set-ligatures
    'prog-mode
-   '("=>" "->" "->>" "<-" "<<-" "<=" ">=" "==" "===" "!=" "!=="
-     "&&" "||" "??" "?." "?:" "::" ":=" "|>" "<|" "<|>"
-     "..." ".." "**" "***" "++" "--" "//" "///" "||" "|||"
-     "<!--" "-->" "</" "/>" "<>" "</>"
-     "www" "##" "###" "####"))
+   '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
+     ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
+     "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
+     "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
+     "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
+     "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
+     "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
+     "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
+     ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
+     "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
+     "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
+     "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
+     "\\\\" "://"))
   (global-ligature-mode t))
 
 ;; Dependencies
@@ -370,6 +425,14 @@ The DWIM behaviour of this command is as follows:
   :custom (inhibit-startup-screen t)
   :config (hel-mode))
 
+;; Required by hel-leader, which drives which-key's internals to draw its preview (Emacs 30+).
+(use-package which-key
+  :ensure nil
+  :config
+  ;; Also governs hel-leader's preview delay.
+  (setq which-key-idle-delay 0.5)
+  (which-key-mode 1))
+
 (use-package hel-leader
   :ensure t
   :vc (:url "https://github.com/helheim-emacs/hel-leader.git" :rev "main")
@@ -381,7 +444,12 @@ The DWIM behaviour of this command is as follows:
   :after (hel org))
 
 (use-package ghostel
-  :ensure t)
+  :ensure t
+  :custom
+  ;; Store the native module outside the elpa tree so package upgrades don't delete it.
+  (ghostel-module-directory (locate-user-emacs-file "ghostel/"))
+  ;; Download the pre-built binary (compiling needs Zig, not installed here).
+  (ghostel-module-auto-install 'download))
 
 (use-package hel-ghostel
   :ensure t
@@ -435,3 +503,203 @@ The DWIM behaviour of this command is as follows:
   ;; :vc ( :url "https://github.com/karthink/gptel-agent" :rev "master")
   :config (gptel-agent-update)
   :after gptel)         ;Read files from agents directories
+
+(use-package vulpea
+  :ensure t
+  :init
+  (setq vulpea-db-async-extraction 'full)
+  (setq vulpea-db-parse-method 'single-temp-buffer)
+  (setq vulpea-db-index-plain-links nil)
+  :config
+  (vulpea-db-autosync-mode +1)
+  :after org)
+
+(use-package vulpea-ui
+  :ensure t
+  :init
+  (setq vulpea-ui-sidebar-position 'right)
+  (setq vulpea-ui-sidebar-size 0.33)
+  (setq vulpea-ui-outline-max-depth 3)
+  (setq vulpea-ui-schema-health-ok-glyph "✓")
+  (setq vulpea-ui-schema-health-issure-glyph "✗")
+  (setq vulpea-ui-schema-health-bullet "●")
+  (setq vulpea-ui-backlinks-show-preview t)
+  (setq vulpea-ui-backlinks-prose-chars-before 30)
+  (setq vulpea-ui-backlinks-prose-chars-after 50))
+
+(use-package vulpea-journal
+  :ensure t
+  :init
+  (setq vulpea-journal-ui-created-today-exclude-journal nil)
+  :config
+  (vulpea-journal-setup)
+  (setq vulpea-journal-default-template
+	(vulpea-journal-template-daily))
+  :after (vulpea vulpea-ui))
+
+(use-package consult-vulpea
+  :ensure t
+  :config
+  (consult-vulpea-mode 1)
+  :after vulpea)
+
+(use-package embark-vulpea
+  :vc (:url "https://github.com/fabcontigiani/embark-vulpea" :rev "main")
+  :after (embark vulpea))
+
+;; opencode's deps (plz -> plz-media-type -> plz-event-source) are GNU-ELPA-only,
+;; so :vc from GitHub. Order matters: package-vc resolves each against what's installed.
+(use-package plz
+  :vc (:url "https://github.com/alphapapa/plz.el" :rev :newest))
+
+(use-package plz-media-type
+  :vc (:url "https://github.com/r0man/plz-media-type" :rev :newest)
+  :after plz)
+
+(use-package plz-event-source
+  :vc (:url "https://github.com/r0man/plz-event-source" :rev :newest)
+  :after plz-media-type)
+
+(use-package opencode
+  :vc (:url "https://codeberg.org/sczi/opencode.el.git" :rev :newest)
+  :after (plz plz-event-source magit markdown-mode))
+
+(use-package pi-coding-agent
+  :ensure t
+  :init
+  (defalias 'pi 'pi-coding-agent))
+
+;; Non-empty placeholder key; Ollama ignores it but minuet refuses to send without one.
+(defun prot/minuet-ollama-api-key ()
+  "Return a placeholder API key for the local Ollama server."
+  "ollama")
+
+;; Minuet code completion, backed by a local Ollama server.
+(use-package minuet
+  :ensure t
+  ;; No bindings by request; commands are M-x only (minuet-active-mode-map is empty upstream).
+  :hook (prog-mode-hook . minuet-auto-suggestion-mode)
+  :config
+  ;; qwen3.5 is a chat model, so use the chat-completions provider, not the FIM default.
+  (setq minuet-provider 'openai-compatible)
+
+  ;; Tuned down for local inference (raise context once you see how the 9b model performs).
+  (setq minuet-n-completions 1
+        minuet-context-window 512
+        minuet-request-timeout 5)
+
+  ;; plist-put, not setq: the plist also holds the prompt/fewshot/chat-input templates.
+  (plist-put minuet-openai-compatible-options
+             :end-point "http://localhost:11434/v1/chat/completions")
+  (plist-put minuet-openai-compatible-options
+             :api-key #'prot/minuet-ollama-api-key)
+  (plist-put minuet-openai-compatible-options
+             :model "qwen3.5:9b-mlx")
+
+  ;; Disable reasoning. qwen3.5 is a thinking model; left on, it spends the whole
+  ;; max_tokens budget inside <think> and emits no completion (13s, empty). Off: ~0.3s.
+  (minuet-set-optional-options minuet-openai-compatible-options :reasoning_effort "none")
+
+  ;; Cap output; completions are short.
+  (minuet-set-optional-options minuet-openai-compatible-options :max_tokens 256)
+  (minuet-set-optional-options minuet-openai-compatible-options :top_p 0.9))
+
+;; Minimal modeline (replaces punch-line). Unmaintained since 2022 but works on Emacs 31.
+(use-package simple-modeline
+  :ensure t
+  :hook (after-init-hook . simple-modeline-mode)
+  :custom
+  ;; (LEFT RIGHT). Dropped minor-modes/input-method/eol/encoding; add back
+  ;; simple-modeline-segment-minor-modes for flycheck's error counts.
+  (simple-modeline-segments
+   '((simple-modeline-segment-modified
+      simple-modeline-segment-buffer-name
+      simple-modeline-segment-position)
+     (simple-modeline-segment-misc-info
+      simple-modeline-segment-vc
+      simple-modeline-segment-process
+      simple-modeline-segment-major-mode))))
+
+(use-package flycheck
+  :ensure t
+  :hook
+  (after-init-hook . global-flycheck-mode))
+
+(use-package flyover
+  :ensure t
+  :hook ((flycheck-mode . flyover-mode)
+         (flymake-mode . flyover-mode))
+  :after flycheck
+  :custom
+  ;; Checker settings
+  (flyover-checkers '(flycheck flymake))
+  (flyover-levels '(error warning info))
+
+  ;; Appearance. Despite the name, this only affects the icon background;
+  ;; the message background comes from prot/flyover-sync-faces below.
+  (flyover-use-theme-colors t)
+
+  ;; Keep message text at full accent strength (upstream washes it toward white).
+  (flyover-text-tint nil)
+
+  ;; Icons
+  (flyover-info-icon " ")
+  (flyover-warning-icon " ")
+  (flyover-error-icon " ")
+
+  ;; Border styles: none, pill, arrow, slant, slant-inv, flames, pixels
+  (flyover-border-match-icon t)
+
+  ;; Display settings
+  (flyover-hide-checker-name t)
+  (flyover-show-virtual-line t)
+  (flyover-virtual-line-type 'curved-dotted-arrow)
+  (flyover-line-position-offset 1)
+
+  ;; Message wrapping
+  (flyover-wrap-messages t)
+  (flyover-max-line-length 80)
+
+  ;; Performance
+  (flyover-debounce-interval 0.2)
+  (flyover-cursor-debounce-interval 0.3)
+
+  ;; Display mode (controls cursor-based visibility)
+  (flyover-display-mode 'always)
+
+  ;; Completion integration
+  (flyover-hide-during-completion t)
+
+  :config
+  (defun prot/flyover--blend (fg bg alpha)
+    "Mix FG into BG, keeping ALPHA (0.0-1.0) of FG.  Return a hex string."
+    (let ((f (color-values fg))
+          (b (color-values bg)))
+      (apply #'format "#%02x%02x%02x"
+             (cl-mapcar (lambda (fc bc)
+                          (/ (round (+ (* fc alpha) (* bc (- 1 alpha)))) 256))
+                        f b))))
+
+  ;; Set explicit face backgrounds blended 12% toward the buffer background.
+  ;; Flyover's own derivation (fg * lightness) only ever darkens, so it produces
+  ;; near-black blocks on light themes; an explicit :background bypasses it.
+  (defun prot/flyover-sync-faces (&rest _)
+    "Give flyover's faces backgrounds derived from the active theme."
+    (let ((bg (face-attribute 'default :background nil t)))
+      (when (and bg (not (eq bg 'unspecified)) (color-defined-p bg))
+        (pcase-dolist (`(,flyover-face . ,theme-face)
+                       '((flyover-error   . error)
+                         (flyover-warning . warning)
+                         (flyover-info    . success)))
+          (let ((fg (face-attribute theme-face :foreground nil t)))
+            (when (and fg (not (eq fg 'unspecified)) (color-defined-p fg))
+              (set-face-attribute
+               flyover-face nil
+               :foreground fg
+               :background (prot/flyover--blend fg bg 0.12))))))
+      (when (fboundp 'flyover--clear-color-cache)
+        (flyover--clear-color-cache))))
+
+  ;; Re-sync on manual theme switches.
+  (add-hook 'enable-theme-functions #'prot/flyover-sync-faces)
+  (prot/flyover-sync-faces))
