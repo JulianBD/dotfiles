@@ -117,6 +117,7 @@ return {
   ["System­einstellungen"] = ":gear:",
   ["Ghostty"] = ":ghostty:",
   ["GitHub Desktop"] = ":git_hub:",
+  ["Glide"] = ":firefox:", -- Firefox-derived browser, no dedicated glyph
   ["Godot"] = ":godot:",
   ["GoLand"] = ":goland:",
   ["Goodnotes"] = ":goodnotes:",
@@ -220,6 +221,7 @@ return {
   ["Open Video Downloader"] = ":open_video_downloader:",
   ["ChatGPT"] = ":openai:",
   ["OpenAI Translator"] = ":openai_translator:",
+  ["OpenCode"] = ":code:", -- no dedicated glyph
   ["OpenVPN Connect"] = ":openvpn_connect:",
   ["Opera"] = ":opera:",
   ["OrbStack"] = ":orbstack:",

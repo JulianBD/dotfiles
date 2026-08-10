@@ -80,7 +80,7 @@ local function create_items(workspaces, display_id)
       },
       label = {
         string = keybind_label[ws] or ws,
-        font = "Monaspace Argon NF:Bold:10.0",
+        font = "FiraCode Nerd Font:Bold:10.0",
         color = faint(colors.text_muted),
         padding_left = 4,
         padding_right = 6,
@@ -163,6 +163,22 @@ local function highlight(new_ws)
   end
 end
 
+-- Focused workspace's icons take the group accent, everything else stays muted.
+-- highlight() owns this too; both must agree, or whichever runs last wins and
+-- the focused pill ends up with an accented label above muted icons.
+local function icon_color_for(ws)
+  if ws == focused_workspace then
+    local c = group_colors(ws)
+    return c
+  end
+  return colors.text_muted
+end
+
+-- Last icon string pushed per workspace. refresh_all_icons() polls on a timer,
+-- so without this every tick would send a :set for all 16 items forever; a
+-- steady desktop should cost zero messages.
+local last_icon_str = {}
+
 -- Apply the icon set for one workspace item
 local function set_ws_icons(ws, apps)
   local item = space_items[ws]
@@ -171,26 +187,45 @@ local function set_ws_icons(ws, apps)
   for _, app in ipairs(apps) do
     icon_str = icon_str .. app_icon(app)
   end
+  if last_icon_str[ws] == icon_str then return end
+  last_icon_str[ws] = icon_str
   if icon_str == "" then
     local pl = ws == "C2" and 8 or 6
     local pr = ws == "C2" and 8 or 10
-    item:set({ icon = { drawing = "off" }, label = { font = "Monaspace Argon NF:Bold:14.0", padding_left = pl, padding_right = pr } })
+    -- Blank the string as well as hiding it: a leftover string would flash the
+    -- previous workspace's apps if anything turned drawing back on first.
+    item:set({ icon = { string = "", drawing = "off" }, label = { font = "FiraCode Nerd Font:Bold:14.0", padding_left = pl, padding_right = pr } })
   else
-    item:set({ icon = { string = icon_str, font = "sketchybar-app-font:Regular:14.0", color = colors.text_muted, padding_left = 6, padding_right = 0, drawing = "on" }, label = { font = "Monaspace Argon NF:Bold:10.0", padding_left = 2, padding_right = 6 } })
+    item:set({ icon = { string = icon_str, font = "sketchybar-app-font:Regular:14.0", color = icon_color_for(ws), padding_left = 6, padding_right = 0, drawing = "on" }, label = { font = "FiraCode Nerd Font:Bold:10.0", padding_left = 2, padding_right = 6 } })
   end
 end
 
 -- Refresh app icons for ALL workspaces with a single aerospace call.
--- One exec (~100ms) instead of one per workspace — icons stay current
+-- One exec (~40ms) instead of one per workspace — icons stay current
 -- everywhere and the bar never queues up a burst of shell-outs.
-local refresh_in_flight = false
+--
+-- The latch is timed out rather than cleared only on reply. It used to be a
+-- plain boolean set true before the exec and false inside the callback, which
+-- meant a single dropped callback wedged icon refresh permanently: every later
+-- request returned early and the bar showed a frozen snapshot until sketchybar
+-- was restarted.
+local REFRESH_STALE_AFTER = 5
+local refresh_started_at = nil
+local refresh_pending = false
+
 local function refresh_all_icons()
-  if refresh_in_flight then return end
-  refresh_in_flight = true
+  if refresh_started_at and (os.time() - refresh_started_at) < REFRESH_STALE_AFTER then
+    -- Coalesce, but remember the request: the in-flight aerospace snapshot was
+    -- taken before this change, so dropping it outright would lose the update.
+    refresh_pending = true
+    return
+  end
+  refresh_started_at = os.time()
+  refresh_pending = false
   sbar.exec(
     "aerospace list-windows --all --format '%{workspace}|%{app-name}' 2>/dev/null",
     function(result)
-      refresh_in_flight = false
+      refresh_started_at = nil
       local by_ws = {}
       for line in (result or ""):gmatch("[^\r\n]+") do
         local ws, app = line:match("^%s*(.-)%s*|%s*(.-)%s*$")
@@ -206,11 +241,15 @@ local function refresh_all_icons()
       for _, ws in ipairs(all_workspaces) do
         set_ws_icons(ws, by_ws[ws] or {})
       end
+      if refresh_pending then refresh_all_icons() end
     end
   )
 end
 
-local handler = sbar.add("item", "space_handler", { drawing = "off" })
+-- update_freq drives the poll below. aerospace only pushes on workspace
+-- *switch*, so opening, closing, or moving a window into another workspace
+-- produces no event at all — polling is the only way those land in real time.
+local handler = sbar.add("item", "space_handler", { drawing = "off", update_freq = 1 })
 
 handler:subscribe("aerospace_workspace_change", function(env)
   local focused = env.FOCUSED_WORKSPACE or ""
@@ -223,6 +262,14 @@ end)
 -- Windows open/close/move without a workspace switch; front-app changes are
 -- a cheap proxy for "something changed", and the refresh is a single exec.
 handler:subscribe("front_app_switched", function(_)
+  refresh_all_icons()
+end)
+
+-- front_app_switched misses a lot: a second window of the already-focused app,
+-- a window closing, a window moved to a workspace you aren't switching to.
+-- The poll catches all of it. Cost is bounded — one ~40ms exec, and set_ws_icons
+-- diffs, so an unchanged desktop sends nothing.
+handler:subscribe("routine", function(_)
   refresh_all_icons()
 end)
 
