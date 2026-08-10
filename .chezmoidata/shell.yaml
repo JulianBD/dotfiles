@@ -5,6 +5,10 @@ shell:
     IGNORE_HOST_CONF: "true"
     TFENV_ARCH: "amd64"
     GODEBUG: "asyncpreemptoff=1"
+    # Broad switch: covers CLAUDE_CODE_SKILLS + CLAUDE_CODE_PROMPT. opencode can't
+    # use a Claude subscription anyway, and without this it slurps every skill under
+    # ~/.claude/skills (48 at last count). ~/.agents discovery is unaffected.
+    OPENCODE_DISABLE_CLAUDE_CODE: "true"
 
   aliases:
     - cmd: cat

@@ -2,6 +2,11 @@
 README.md
 AGENTS.md
 LICENSE
+*.plan.yaml
+session-*.md
+
+# opencode: typst build output (lives in repo for the source .typ, not deployed)
+.config/opencode/out
 
 # Emacs generated/state (also covered by .emacs.d/.gitignore)
 .emacs.d/elpa

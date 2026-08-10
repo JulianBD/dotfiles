@@ -5,6 +5,44 @@
     include = ["helix-master/runtime/**"]
     refreshPeriod = "168h"
 
+# --- opencode skills (vendor-official, discovered via ~/.config/opencode/skills/**) ---
+
+# HashiCorp's official Terraform skills. Consumer-side bundles only:
+# provider-development (writing providers in Go) and packer are excluded.
+# One entry per bundle: include must land directly on skills/** with the
+# stripComponents to match, or intermediate dir entries get filtered out
+# and the extract fails on missing parents.
+[".config/opencode/skills/terraform-code-generation"]
+    type = "archive"
+    url = "https://github.com/hashicorp/agent-skills/archive/refs/heads/main.tar.gz"
+    stripComponents = 4
+    include = ["agent-skills-main/terraform/code-generation/skills/**"]
+    refreshPeriod = "168h"
+
+[".config/opencode/skills/terraform-module-generation"]
+    type = "archive"
+    url = "https://github.com/hashicorp/agent-skills/archive/refs/heads/main.tar.gz"
+    stripComponents = 4
+    include = ["agent-skills-main/terraform/module-generation/skills/**"]
+    refreshPeriod = "168h"
+
+[".config/opencode/skills/terraform-policy"]
+    type = "archive"
+    url = "https://github.com/hashicorp/agent-skills/archive/refs/heads/main.tar.gz"
+    stripComponents = 4
+    include = ["agent-skills-main/terraform/policy/skills/**"]
+    refreshPeriod = "168h"
+
+# AWS's official Agent Toolkit skills, aws-core bundle only (service selection,
+# CDK/CFN, compute, containers, IAM, observability, SDK usage, ...).
+# Specialized categories can be added later once narrowed down.
+[".config/opencode/skills/aws-core"]
+    type = "archive"
+    url = "https://github.com/aws/agent-toolkit-for-aws/archive/refs/heads/main.tar.gz"
+    stripComponents = 4
+    include = ["agent-toolkit-for-aws-main/plugins/aws-core/skills/**"]
+    refreshPeriod = "168h"
+
 # Monospace/coding font (Monaspace Argon NF) comes from the
 # font-monaspace-nf Homebrew cask, not an external file pin — see
 # dot_Brewfile.tmpl. AporeticSansMono/AporeticSerifMono are no longer
