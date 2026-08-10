@@ -5,15 +5,17 @@ Shell-agnostic CLI that drives the Python theme pipeline.
 Callable from fish, xonsh, bash, or any shell with ~/.local/bin on PATH.
 
 Subcommands:
-    apply <name>   Apply a theme to all downstream configs
-    pick           Interactive fzf picker with color swatches
-    list           List all available themes
-    current        Show the currently active theme
-    sync           Clone/pull all four theme family repos
+    apply <name>    Apply a theme to all downstream configs
+    pick            Interactive fzf picker with a live preview pane
+    preview <name>  Render a truecolor preview block (used by pick)
+    list            List all available themes
+    current         Show the currently active theme
+    sync            Clone/pull all four theme family repos
 """
 
 import argparse
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -43,11 +45,19 @@ def cmd_current(args):
         print("No theme set")
 
 
+def _variant_filtered(db, args):
+    """Restrict a theme db to the variant chosen by --light/--dark."""
+    want = getattr(args, "variant", None)
+    if not want:
+        return db
+    return {name: e for name, e in db.items() if e["variant"] == want}
+
+
 def cmd_list(args):
     ensure_importable()
     from theme_db import build_db
 
-    db = build_db()
+    db = _variant_filtered(build_db(), args)
     for name in sorted(db):
         v = db[name]["variant"]
         f = db[name]["family"]
@@ -114,11 +124,129 @@ def cmd_apply(args):
     print(f"Applied theme: {name} ({variant})")
 
 
+def _rgb(hexcolor):
+    h = hexcolor.lstrip("#")
+    return int(h[:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def _fg_esc(hexcolor):
+    r, g, b = _rgb(hexcolor)
+    return f"\033[38;2;{r};{g};{b}m"
+
+
+def _bg_esc(hexcolor):
+    r, g, b = _rgb(hexcolor)
+    return f"\033[48;2;{r};{g};{b}m"
+
+
+def _snippet(theme_name):
+    """A small hand-tokenized code sample: (text, role) pairs per line.
+    No real highlighter needed -- the sample is fixed, so the tokens are
+    written out by hand."""
+    return [
+        [("# How this theme colors code", "comment")],
+        [("from ", "keyword"), ("pathlib", "text"), (" import ", "keyword"),
+         ("Path", "type")],
+        [],
+        [("def ", "keyword"), ("load_palette", "func"), ("(name: ", "text"),
+         ("str", "type"), (") -> ", "text"), ("dict", "type"), (":", "text")],
+        [("    ", "text"), ('"""Map a theme name to its palette."""', "string")],
+        [("    path = ", "text"), ("Path", "type"), ("(", "text"),
+         ('"~/.config/dotfiles"', "string"), (") / name", "text")],
+        [("    ", "text"), ("return ", "keyword"), ("{", "text"),
+         ('"name"', "string"), (": name, ", "text"), ('"size"', "string"),
+         (": ", "text"), ("len", "builtin"), ("(name)}", "text")],
+        [],
+        [("palette = ", "text"), ("load_palette", "func"), ("(", "text"),
+         (f'"{theme_name}"', "string"), (")", "text")],
+        [("print", "builtin"), ("(f", "text"),
+         ('"loaded {palette[\'size\']} names"', "string"), (")", "text")],
+    ]
+
+
+def cmd_preview(args):
+    ensure_importable()
+    from theme_db import build_db
+    from generators import terminal_colors
+
+    db = build_db()
+    name = args.name
+    if name not in db:
+        print(f"Unknown theme: {name}", file=sys.stderr)
+        return 1
+
+    entry = db[name]
+    palette = entry["palette"]
+    tc = terminal_colors(palette)
+    fg = tc["fg"]
+
+    def pick(*keys, default):
+        for k in keys:
+            if k in palette:
+                return palette[k]
+        return default
+
+    # Approximate Prot's editor faces; families without the finer-grained
+    # names (e.g. doric) fall back toward plain fg
+    role = {
+        "text": fg,
+        "comment": pick("fg-dim", "fg-alt", default=fg),
+        "keyword": pick("magenta-cooler", "magenta", default=fg),
+        "string": pick("blue-warmer", "green", "blue", default=fg),
+        "func": pick("magenta", "magenta-warmer", default=fg),
+        "type": pick("cyan-cooler", "cyan", default=fg),
+        "builtin": pick("magenta-warmer", "magenta", default=fg),
+    }
+
+    width = int(os.environ.get("FZF_PREVIEW_COLUMNS", 0)) or \
+        shutil.get_terminal_size().columns
+    bg = _bg_esc(tc["bg"])
+    reset = "\033[0m"
+    out = []
+
+    def emit(segments=(), indent=2):
+        visible = indent + sum(len(t) for t, _ in segments)
+        parts = [bg, " " * indent]
+        for text, color in segments:
+            parts.append(_fg_esc(color) + text)
+        parts.append(" " * max(0, width - visible) + reset)
+        out.append("".join(parts))
+
+    emit()
+    emit([(name, fg), (f"  {entry['variant']}", role["comment"])])
+    emit()
+    for line in _snippet(name):
+        emit([(text, role[r]) for text, r in line])
+    emit()
+
+    # The 16 ANSI slots: normal row, bright row
+    for row in (tc["ansi"][:8], tc["ansi"][8:]):
+        parts = [bg, "  "]
+        for color in row:
+            parts.append(_bg_esc(color) + "    " + bg + " ")
+        parts.append(" " * max(0, width - (2 + 8 * 5)) + reset)
+        out.append("".join(parts))
+    emit()
+
+    # Selection and cursor samples
+    sample = " selected text "
+    parts = [bg, "  ",
+             _bg_esc(tc["sel_bg"]) + _fg_esc(tc["sel_fg"]) + sample, bg,
+             "   ", _bg_esc(tc["cursor"]) + "  ", bg,
+             _fg_esc(role["comment"]) + " cursor"]
+    visible = 2 + len(sample) + 3 + 2 + 7
+    parts.append(" " * max(0, width - visible) + reset)
+    out.append("".join(parts))
+    emit()
+
+    print("\n".join(out))
+
+
 def cmd_pick(args):
     ensure_importable()
     from theme_db import build_db
 
-    db = build_db()
+    db = _variant_filtered(build_db(), args)
 
     lines = []
     for name in sorted(db):
@@ -135,9 +263,12 @@ def cmd_pick(args):
                 swatches += f"\033[38;2;{r};{g};{b}m\u2588\u2588\033[0m"
         lines.append(f"{name:40s} {v:5s}  {swatches}")
 
+    script = shlex.quote(str(Path(__file__).resolve()))
     try:
         result = subprocess.run(
-            ["fzf", "--ansi", "--prompt", "theme > ", "--no-multi"],
+            ["fzf", "--ansi", "--prompt", "theme > ", "--no-multi",
+             "--preview", f"{script} preview {{1}}",
+             "--preview-window", "right,60%"],
             input="\n".join(lines),
             capture_output=True,
             text=True,
@@ -159,13 +290,26 @@ def main():
     )
     sub = parser.add_subparsers(dest="command")
 
+    # --light/--dark, shared by the commands that enumerate themes
+    variant_flags = argparse.ArgumentParser(add_help=False)
+    group = variant_flags.add_mutually_exclusive_group()
+    group.add_argument("--light", action="store_const", const="light",
+                       dest="variant", help="Only light themes")
+    group.add_argument("--dark", action="store_const", const="dark",
+                       dest="variant", help="Only dark themes")
+
     sub.add_parser("current", help="Show the currently active theme")
-    sub.add_parser("list", help="List all available themes")
+    sub.add_parser("list", help="List all available themes",
+                   parents=[variant_flags])
     sub.add_parser("sync", help="Clone/pull all theme family repos")
-    sub.add_parser("pick", help="Interactive fzf picker with color swatches")
+    sub.add_parser("pick", help="Interactive fzf picker with a live preview pane",
+                   parents=[variant_flags])
 
     p_apply = sub.add_parser("apply", help="Apply a theme to all downstream configs")
     p_apply.add_argument("name", help="Theme name (e.g. modus-operandi, ef-autumn)")
+
+    p_preview = sub.add_parser("preview", help="Render a truecolor preview block")
+    p_preview.add_argument("name", help="Theme name to preview")
 
     args = parser.parse_args()
 
@@ -175,6 +319,7 @@ def main():
         "sync": cmd_sync,
         "apply": cmd_apply,
         "pick": cmd_pick,
+        "preview": cmd_preview,
     }
 
     if args.command in dispatch:

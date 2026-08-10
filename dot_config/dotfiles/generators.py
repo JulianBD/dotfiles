@@ -35,19 +35,17 @@ def require(palette: dict, *keys: str) -> str:
 # Ghostty
 # ---------------------------------------------------------------------------
 
-def generate_ghostty(palette: dict, name: str, variant: str, roles: dict | None = None):
-    """Write a Ghostty theme file to ~/.config/ghostty/themes/<name>.
+def terminal_colors(palette: dict) -> dict:
+    """Resolve a palette to terminal colors, shared by the Ghostty
+    generator and `theme preview`.
 
-    Maps Prot's palette to Ghostty's color configuration:
+    Maps Prot's palette to a terminal's color configuration:
     - background/foreground from bg-main/fg-main
-    - cursor-color from cursor (per-theme), cursor-text from bg-main
+    - cursor from cursor (per-theme), cursor_text from bg-main
     - selection from bg-region
-    - ANSI 16 from modus term mappings (preferred), named colors, or
-      doric fg-COLOR names (via normalization)
+    - the 16 ANSI slots from modus term mappings (preferred), named
+      colors, or doric fg-COLOR names (via normalization)
     """
-    out = Path.home() / ".config/ghostty/themes" / name
-    out.parent.mkdir(parents=True, exist_ok=True)
-
     bg = palette["bg-main"]
     fg = palette["fg-main"]
     cursor = get(palette, "cursor", fg)
@@ -61,36 +59,57 @@ def generate_ghostty(palette: dict, name: str, variant: str, roles: dict | None 
     magenta = get(palette, "fg-term-magenta", get(palette, "magenta", fg))
     cyan    = get(palette, "fg-term-cyan",    get(palette, "cyan",    fg))
 
-    # ANSI bright (8-15): prefer explicit term bright mappings, then warmer variants
+    # ANSI bright (8-15): prefer explicit term bright mappings, then Prot's
+    # modus convention (modus-themes.el common palette mappings): brights are
+    # red/yellow/blue -warmer, green/magenta/cyan -cooler
     red_br     = get(palette, "fg-term-red-bright",     get(palette, "red-warmer",     red))
-    green_br   = get(palette, "fg-term-green-bright",   get(palette, "green-warmer",   green))
+    green_br   = get(palette, "fg-term-green-bright",   get(palette, "green-cooler",   green))
     yellow_br  = get(palette, "fg-term-yellow-bright",  get(palette, "yellow-warmer",  yellow))
     blue_br    = get(palette, "fg-term-blue-bright",    get(palette, "blue-warmer",    blue))
-    magenta_br = get(palette, "fg-term-magenta-bright", get(palette, "magenta-warmer", magenta))
-    cyan_br    = get(palette, "fg-term-cyan-bright",    get(palette, "cyan-warmer",    cyan))
+    magenta_br = get(palette, "fg-term-magenta-bright", get(palette, "magenta-cooler", magenta))
+    cyan_br    = get(palette, "fg-term-cyan-bright",    get(palette, "cyan-cooler",    cyan))
 
-    # Black/white ANSI slots
-    black    = get(palette, "bg-term-black",        get(palette, "bg-dim", bg))
-    white    = get(palette, "fg-term-white",        fg)
-    black_br = get(palette, "bg-term-black-bright", get(palette, "bg-active", black))
-    white_br = get(palette, "fg-term-white-bright", get(palette, "fg-alt", fg))
+    # Black/white ANSI slots; fallbacks are Prot's variant-agnostic
+    # grays from the modus common palette mappings
+    black    = get(palette, "bg-term-black",        "#000000")
+    white    = get(palette, "fg-term-white",        "#a6a6a6")
+    black_br = get(palette, "bg-term-black-bright", "#595959")
+    white_br = get(palette, "fg-term-white-bright", "#ffffff")
 
     sel_bg = get(palette, "bg-region", get(palette, "bg-active", black))
     sel_fg = fg
 
+    return {
+        "bg": bg,
+        "fg": fg,
+        "cursor": cursor,
+        "cursor_text": cursor_text,
+        "sel_bg": sel_bg,
+        "sel_fg": sel_fg,
+        "ansi": [black, red, green, yellow, blue, magenta, cyan, white,
+                 black_br, red_br, green_br, yellow_br, blue_br, magenta_br, cyan_br, white_br],
+    }
+
+
+def generate_ghostty(palette: dict, name: str, variant: str, roles: dict | None = None):
+    """Write a Ghostty theme file to ~/.config/ghostty/themes/<name>.
+
+    All color resolution lives in `terminal_colors`.
+    """
+    out = Path.home() / ".config/ghostty/themes" / name
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    tc = terminal_colors(palette)
     lines = [
         f"# Auto-generated from palette: {name}",
-        f"background = {bg}",
-        f"foreground = {fg}",
-        f"cursor-color = {cursor}",
-        f"cursor-text = {cursor_text}",
-        f"selection-background = {sel_bg}",
-        f"selection-foreground = {sel_fg}",
+        f"background = {tc['bg']}",
+        f"foreground = {tc['fg']}",
+        f"cursor-color = {tc['cursor']}",
+        f"cursor-text = {tc['cursor_text']}",
+        f"selection-background = {tc['sel_bg']}",
+        f"selection-foreground = {tc['sel_fg']}",
     ]
-
-    ansi = [black, red, green, yellow, blue, magenta, cyan, white,
-            black_br, red_br, green_br, yellow_br, blue_br, magenta_br, cyan_br, white_br]
-    for i, color in enumerate(ansi):
+    for i, color in enumerate(tc["ansi"]):
         lines.append(f"palette = {i}={color}")
 
     out.write_text("\n".join(lines) + "\n")
