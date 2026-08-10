@@ -214,17 +214,6 @@ alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
 # alt-shift-m, then the target workspace key (same layout as alt-<key>)
 alt-shift-m = 'mode moveall'
 
-# Comms live in a dedicated Zen window (Slack/Outlook/Teams web)
-[[on-window-detected]]
-    if.app-id = 'app.zen-browser.zen'
-    if.window-title-regex-substring = 'Slack|Mail|Calendar|Teams'
-    run = ['layout tiling', 'move-node-to-workspace C1']
-
-[[on-window-detected]]
-    if.app-id = 'com.spotify.client'
-    run = ['layout tiling', 'move-node-to-workspace C2']
-
-
 # 'moveall' binding mode: pick the destination for the whole workspace.
 # Keys mirror the alt-<key> workspace layout.
 [mode.moveall.binding]
@@ -257,9 +246,3 @@ alt-shift-h = ['join-with left', 'mode main']
 alt-shift-j = ['join-with down', 'mode main']
 alt-shift-k = ['join-with up', 'mode main']
 alt-shift-l = ['join-with right', 'mode main']
-
-[[on-window-detected]]
-if.app-id="com.mitchellh.ghostty"
-run= [
-  "layout tiling",
-]
