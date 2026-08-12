@@ -1,0 +1,62 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "atlassian": {
+      "type": "remote",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "oauth": {}
+    },
+    // Remote OAuth needs dynamic client registration, which GitHub's endpoint
+    // lacks (github-mcp-server#2344) — PAT via header is the working auth from
+    // opencode. GITHUB_TOKEN comes from gopass via fish config.
+    "github": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer {env:GITHUB_TOKEN}"
+      },
+      "oauth": false
+    },
+    // Kapeli's official Dash server — local docset/SDK documentation search.
+    // Requires the Dash app (Dash 8+) to be installed.
+    "dash": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "--from",
+        "git+https://github.com/Kapeli/dash-mcp-server.git",
+        "dash-mcp-server"
+      ]
+    },
+    // AWS-hosted, free, no credentials: docs, API refs, Well-Architected.
+    // The credentialed AWS execution server is deliberately NOT configured.
+    "aws-knowledge": {
+      "type": "remote",
+      "url": "https://knowledge-mcp.global.api.aws"
+    },
+    // Registry toolset only (provider/module/policy docs). The HCP Terraform
+    // toolset needs a TFE token and isn't used here.
+    "terraform": {
+      "type": "local",
+      "command": [
+        "docker",
+        "run",
+        "-i",
+        "--rm",
+        "hashicorp/terraform-mcp-server",
+        "--toolsets=registry"
+      ]
+    },
+    // Red Hat-backed server; covers kubectl-style ops and Helm. Read-only
+    // until there's a reason for agents to mutate clusters.
+    "kubernetes": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "kubernetes-mcp-server@latest",
+        "--read-only"
+      ]
+    }
+  }
+}

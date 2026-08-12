@@ -20,6 +20,17 @@ version = "2026-04-21"
 build = "cabal install --install-method=copy --installdir=$INSTALLDIR --overwrite-policy=always"
 needs = ["cabal"]
 
+# Go-native babashka (Gloat/Glojure). Makefile default PREFIX is $HOME/.local
+# for non-root, so this lands at $INSTALLDIR/gobb; stated as needing only
+# git/make/curl/bash — no Go toolchain.
+[source_builds.gobb]
+repo = "https://github.com/gloathub/gobb.git"
+# GOROOT must be cleared: mise exports it (go 1.25.6) and it overrides the
+# toolchain gloat vendors (go 1.25.7), giving "compile: version does not
+# match go tool version" for every package. Verified 2026-08-12.
+build = "env -u GOROOT -u GOTOOLCHAIN make install PREFIX=\"$HOME/.local\""
+needs = ["make", "curl"]
+
 [cloned_repos.svns]
 repo = "https://github.com/JulianBD/svns.git"
 dest = "~/Code/svns"
