@@ -65,6 +65,9 @@ export def upload [
     --label: string = "http"
     --max-size: filesize = 25mb
 ]: nothing -> string {
+    # Expand once, up front: `~` is only expanded by nushell in bare words, so a
+    # quoted or variable-held path arrives here literal.
+    let file = ($file | path expand --no-symlink)
     if not ($file | path exists) {
         error make {msg: $"no such file: ($file)"}
     }
@@ -76,9 +79,11 @@ export def upload [
     let header_args = ($headers | transpose name value | each {|h| [-H $"($h.name): ($h.value)"] } | flatten)
     let field_args = ($fields | transpose name value | each {|f| [-F $"($f.name)=($f.value)"] } | flatten)
     let args = (
-        [-sS --fail-with-body --http1.1 --connect-timeout 30 -X POST $url]
+        # --retry covers curl's transient set (408/429/5xx): large uploads to
+        # api.openai.com intermittently draw a 502 from the Cloudflare edge.
+        [-sS --fail-with-body --http1.1 --connect-timeout 30 --retry 2 -X POST $url]
         | append $header_args
-        | append [-F $"file=@($file | path expand)"]
+        | append [-F $"file=@($file)"]
         | append $field_args
     )
 

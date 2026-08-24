@@ -38,8 +38,12 @@ def check-format [model: string, format: string] {
 def post-audio [route: string, path: string, fields: record, format: string] {
     # Checked here as well as in `http upload`: the header record below resolves
     # the API key eagerly, so without this a missing file reports "no openai key".
+    let path = ($path | path expand --no-symlink)
     if not ($path | path exists) {
-        error make {msg: $"no such file: ($path)"}
+        let hint = (if ($path | str contains "\\") {
+            " (paths in quotes need no backslash escapes: use '3324 Beech Ave 4.m4a')"
+        } else { "" })
+        error make {msg: $"no such file: ($path)($hint)"}
     }
     let out = (
         http upload $"($BASE)/audio/($route)" {Authorization: $"Bearer (key)"} $path $fields --label "openai"
