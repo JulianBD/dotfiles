@@ -14,12 +14,15 @@
 # Guessing wrong shows up as a 500 or "Input type not supported"; override with
 # --protocol in that case.
 
+use ./http.nu
+
 const BASE = "https://opencode.ai/zen/v1"
 
 # API key: $env.OPENCODE_ZEN_API_KEY wins, else the key opencode already stored.
 export def key []: nothing -> string {
-    if "OPENCODE_ZEN_API_KEY" in $env {
-        return $env.OPENCODE_ZEN_API_KEY
+    let from_env = (http env-key "OPENCODE_ZEN_API_KEY")
+    if $from_env != null {
+        return $from_env
     }
     let auth = ($env.HOME | path join ".local/share/opencode/auth.json")
     if not ($auth | path exists) {
@@ -40,23 +43,12 @@ def protocol [model: string]: nothing -> string {
     } else { "openai-chat" }
 }
 
-def post [url: string, headers: record, body: record] {
-    let resp = (
-        http post --content-type application/json --headers $headers --allow-errors $url $body
-    )
-    let err = ($resp | get -o error)
-    if $err != null {
-        error make {msg: $"zen: ($err | get -o message | default ($err | to nuon))"}
-    }
-    $resp
-}
-
 # List the models zen currently serves.
 export def models [
     pattern?: string  # optional regex filter on the model id
 ]: nothing -> table {
     let rows = (
-        http get --headers {Authorization: $"Bearer (key)"} $"($BASE)/models"
+        http get-json $"($BASE)/models" {Authorization: $"Bearer (key)"} "zen"
         | get data
         | select id owned_by
     )
@@ -85,7 +77,7 @@ export def chat [
                 | merge (if $system == null { {} } else { {system: $system} })
                 | merge $temp
             )
-            let resp = (post $"($BASE)/messages" {"x-api-key": $k, "anthropic-version": "2023-06-01"} $body)
+            let resp = (http post-json $"($BASE)/messages" {"x-api-key": $k, "anthropic-version": "2023-06-01"} $body "zen")
             if $raw { $resp } else {
                 $resp.content | where type == "text" | get -o text | str join "\n"
             }
@@ -96,7 +88,7 @@ export def chat [
                 | merge (if $system == null { {} } else { {instructions: $system} })
                 | merge $temp
             )
-            let resp = (post $"($BASE)/responses" {Authorization: $"Bearer ($k)"} $body)
+            let resp = (http post-json $"($BASE)/responses" {Authorization: $"Bearer ($k)"} $body "zen")
             if $raw { $resp } else {
                 $resp.output | where type == "message" | get content | flatten
                 | where type == "output_text" | get -o text | str join "\n"
@@ -110,7 +102,7 @@ export def chat [
                   })
                 | merge {generationConfig: ({maxOutputTokens: $max_tokens} | merge $temp)}
             )
-            let resp = (post $"($BASE)/models/($model):generateContent" {"x-goog-api-key": $k} $body)
+            let resp = (http post-json $"($BASE)/models/($model):generateContent" {"x-goog-api-key": $k} $body "zen")
             if $raw { $resp } else {
                 $resp.candidates.0.content.parts | where {|p| "text" in $p} | get text | str join "\n"
             }
@@ -121,7 +113,7 @@ export def chat [
                 | append {role: "user", content: $content}
             )
             let body = ({model: $model, messages: $messages, max_tokens: $max_tokens} | merge $temp)
-            let resp = (post $"($BASE)/chat/completions" {Authorization: $"Bearer ($k)"} $body)
+            let resp = (http post-json $"($BASE)/chat/completions" {Authorization: $"Bearer ($k)"} $body "zen")
             if $raw { $resp } else { $resp.choices.0.message.content }
         }
     }
