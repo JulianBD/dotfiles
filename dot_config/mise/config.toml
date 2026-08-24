@@ -4,7 +4,9 @@ aws-sso = "latest"
 bat = "latest"
 go = "latest"
 gum = "latest"
-"cargo:https://github.com/helix-editor/helix" = { version = "branch:master", crate = "helix-term" }
+# helix: installed from the mattwparas/steel-event-system fork by
+# run_onchange_05-install-helix-steel.sh (cargo xtask steel -> ~/.cargo/bin).
+# Not a mise tool: the plugin build needs xtask codegen, not a plain cargo install.
 ghcup = "latest"
 jq = "latest"
 ripgrep = "latest"

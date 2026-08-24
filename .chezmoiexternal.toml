@@ -1,8 +1,10 @@
 [".config/helix/runtime"]
     type = "archive"
-    url = "https://github.com/helix-editor/helix/archive/refs/heads/master.tar.gz"
+    # Tracks the same fork/branch the binary is built from, so runtime queries
+    # and grammars stay matched to the hx that loads them.
+    url = "https://github.com/mattwparas/helix/archive/refs/heads/steel-event-system.tar.gz"
     stripComponents = 2
-    include = ["helix-master/runtime/**"]
+    include = ["helix-steel-event-system/runtime/**"]
     refreshPeriod = "168h"
 
 # --- opencode skills (vendor-official, discovered via ~/.config/opencode/skills/**) ---

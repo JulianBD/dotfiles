@@ -1,0 +1,42 @@
+#!/bin/bash
+# Build helix from mattwparas' fork, with the Steel plugin system enabled.
+#
+# Not a mise tool: `cargo xtask steel` does four things a plain `cargo install`
+# cannot. It installs the steel toolchain (interpreter, language server,
+# cargo-steel-lib, forge), refreshes the forge package index, runs codegen to
+# emit the `helix/*.scm` stdlib that helix.scm/init.scm require, and only then
+# builds helix-term with --features steel,git. Skipping codegen yields an hx
+# whose plugin commands have no stdlib to load.
+#
+# Everything lands in ~/.cargo/bin. Bump HELIX_STEEL_REF to update; changing it
+# changes this script's hash, which is what makes chezmoi re-run it.
+set -euo pipefail
+
+eval "$({{ .brew_prefix }}/bin/brew shellenv)"
+
+HELIX_STEEL_REF="5a8635beda77414850a2b9604aa0643e4713db3b"
+SRC="$HOME/.local/src/helix-steel"
+
+export PATH="$HOME/.cargo/bin:$PATH"
+
+if ! command -v cargo >/dev/null 2>&1; then
+    echo "  SKIP: helix-steel needs a rust toolchain (rustup) on PATH"
+    exit 0
+fi
+
+echo "── Building helix + steel (${HELIX_STEEL_REF:0:8}) ──"
+
+if [ ! -d "$SRC/.git" ]; then
+    mkdir -p "$(dirname "$SRC")"
+    git clone https://github.com/mattwparas/helix "$SRC"
+fi
+
+cd "$SRC"
+git fetch --quiet origin steel-event-system
+git checkout --quiet --detach "$HELIX_STEEL_REF"
+
+# The fork pins rust 1.90.0 in rust-toolchain.toml; rustup fetches it on demand.
+cargo xtask steel
+
+echo "  hx installed to $(command -v hx)"
+hx --version
