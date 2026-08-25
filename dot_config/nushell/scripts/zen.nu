@@ -491,3 +491,95 @@ export def propose [
     remember "propose" $model null $request $raw $response
     $proposal
 }
+
+# Read arbitrary prose into structured entries.
+#
+# The second of two composable calls, never one. The first is whatever
+# produced the prose — a chat, a transcript, a file — free-form and answered
+# by whichever model was worth paying for. This one is cheap and constrained:
+# it reads that output and corrals the semantic material into entries, each a
+# subject, a named relation and an object.
+#
+#   zen chat "explain how zen picks a protocol" | zen extract
+#   open notes.md | zen extract
+#   store session load work | get content | str join "\n\n" | zen extract
+#
+# Keeping the stages separate is what makes them composable, and it means the
+# expensive model is never asked to also be a parser. Nothing here re-asks the
+# first question; extraction sees only text.
+#
+# The reply is checked for shape. It is deliberately *not* checked for
+# single-valuedness: two entries sharing a subject and relation may be a
+# contradiction or may be an ordinary many-valued relation, and nothing in the
+# data tells them apart. `zen extract conflicts` reports them so the judgement
+# stays with you.
+export def extract [
+    --model (-m): string@model-names = $DEFAULT_MODEL  # Cheap is the point
+    --max-tokens: int = 4000                           # Includes reasoning tokens
+]: string -> table<subject: string, relation: string, object: string> {
+    let text: string = $in
+    if ($text | str trim | is-empty) { return [] }
+
+    let wire: string = (protocol-for $model)
+    if $wire != "openai-chat" {
+        error make {
+            msg: $"extract needs a chat-completions model; ($model) speaks ($wire)"
+        }
+    }
+
+    let system: string = "You turn prose into structured entries.
+
+Read the text and express everything it asserts as entries. Each entry is a
+subject, a named relation, and an object — a sentence broken into three parts,
+so that `subject relation object` reads as the claim the text made.
+
+Cover the semantic material, not the wording: skip pleasantries, hedging and
+restatement. Assert nothing the text does not. If the text asserts nothing,
+return no entries.
+
+Name the same thing the same way every time, so entries about one subject
+share a subject string exactly. Use a relation consistently: do not say `has
+as protocol` once and `uses protocol` later for the same relationship."
+
+    let body: record = {
+        model: $model,
+        max_tokens: $max_tokens,
+        messages: [
+            {role: "system", content: $system}
+            {role: "user", content: $text}
+        ],
+        response_format: {
+            type: "json_schema",
+            json_schema: {
+                name: "extraction",
+                strict: true,
+                schema: (schema json extraction)
+            }
+        }
+    }
+
+    let response: record = (send $wire $model $body)
+    let raw: string = (text-of $wire $response)
+    let checked: record = ($raw | from json | schema check extraction)
+    remember "extract" $model null ($text | str substring 0..200) $raw $response
+    $checked.entries
+}
+
+# Entries that share a subject and relation but disagree about the object.
+#
+# Not necessarily errors. `a registry resolves an endpoint` and `a registry
+# resolves credentials` both hold; that relation is many-valued, which in olog
+# terms means it is a span rather than an aspect. What this cannot be is one
+# *aspect* with two images, so seeing a pair here is the prompt to decide which
+# of the two it is.
+export def "extract conflicts" []: table -> table {
+    $in
+    | group-by {|row| $"($row.subject)\u{1f}($row.relation)" }
+    | transpose key rows
+    | where {|group| ($group.rows | get object | uniq | length) > 1 }
+    | each {|group| {
+        subject: ($group.rows | get 0.subject),
+        relation: ($group.rows | get 0.relation),
+        objects: ($group.rows | get object | uniq)
+    } }
+}

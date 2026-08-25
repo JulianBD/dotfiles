@@ -19,6 +19,20 @@
 // violation of the functionality of that arrow, which is what `functorial` in
 // olog.frg has demanded since rung 0. Contradiction detection is already paid
 // for.
+//
+// With one correction, learned by running an extractor against real prose and
+// having it rejected. `coherent` below is a claim about *arrows that are
+// aspects*, and not every extracted relation is one. Given "the registry
+// resolves an endpoint" and "the registry resolves credentials", both true,
+// applying coherence globally calls a many-valued relation a contradiction.
+// That is §2.2.3's `a father has a child` exactly: such a relationship is not
+// an aspect at all but a span, and no amount of data distinguishes the two
+// cases — deciding that `has as protocol` is single-valued while `resolves` is
+// not is a modelling judgement made per arrow.
+//
+// So `coherent` is a constraint one *chooses* to apply to particular arrows,
+// not a validity condition on extraction. The tests below say what it does
+// when applied; they do not say it should always be.
 open "olog.frg"
 
 one sig AMessage extends Type {}  // a message

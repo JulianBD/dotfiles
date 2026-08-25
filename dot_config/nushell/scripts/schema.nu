@@ -2,14 +2,13 @@
 #
 #   use schema.nu
 #   schema json proposal      # JSON Schema, for response_format
-#   schema olog proposal      # the type and its aspects, as sentences
 #   $record | schema check proposal
 #
-# Each schema is one .ncl file describing a type once, exporting three views of
-# it: `json_schema` for the decoder to enforce during generation, `olog` for
-# prompting and reading, and `Contract` for checking a value on the way back.
-# Generating all three from one description is the point — maintaining a JSON
-# Schema beside a validator is how the two come to disagree.
+# Each schema is one .ncl file describing a type once, exporting two views of
+# it: `json_schema` for the decoder to enforce during generation, and
+# `Contract` for checking the value on the way back. Generating both from one
+# description is the point — maintaining a JSON Schema beside a validator is
+# how the two come to disagree.
 #
 # Nickel evaluation costs about 30ms, which is nothing beside the network call
 # these schemas are used for, so nothing here is cached.
@@ -61,17 +60,6 @@ export def json [
     name: string  # Schema name
 ]: nothing -> record {
     evaluate $name "s.json_schema"
-}
-
-# The type and its aspects, as olog sentences.
-#
-# A type is a singular indefinite noun phrase and an aspect reads as a
-# sentence — Rules 2.1.1 and 2.2.1. models/olog.frg cannot enforce those,
-# because it carries no labels; this layer has them.
-export def olog [
-    name: string  # Schema name
-]: nothing -> list<string> {
-    evaluate $name "s.olog"
 }
 
 # Check a value against a schema, returning it unchanged or raising.
