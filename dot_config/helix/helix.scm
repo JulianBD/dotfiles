@@ -3,8 +3,32 @@
 (require "helix/editor.scm")
 (require (prefix-in helix. "helix/commands.scm"))
 (require (prefix-in helix.static. "helix/static.scm"))
+(require "cogs/recentf.scm")
+(require "cogs/git-status-picker.scm")
+(require "cogs/file-tree.scm")
+(require "cogs/helix-ext.scm")
+(require "cogs/scheme-indent.scm")
+(require "focus.scm")
+(require "steel-pty/term.scm")
+(require "helix-file-watcher/file-watcher.scm")
 
-(provide shell git-add open-helix-scm open-init-scm)
+(provide shell
+         git-add
+         open-helix-scm
+         open-init-scm
+         recentf-open-files
+         create-gs-picker
+         create-file-tree
+         eval-buffer
+         scheme-indent
+         focus
+         unfocus
+         open-term
+         new-term
+         switch-term
+         kill-active-terminal
+         hide-terminal
+         spawn-watcher)
 
 (define (current-path)
   (let* ([focus (editor-focus)]
