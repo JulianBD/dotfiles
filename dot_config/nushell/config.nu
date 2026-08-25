@@ -17,49 +17,58 @@ $env.config.show_banner = false
 
 use ~/.config/nushell/scripts/zen.nu
 use ~/.config/nushell/scripts/store.nu
+use ~/.config/nushell/scripts/keys.nu
 use ~/.config/nushell/scripts/openai.nu
 use ~/.config/nushell/scripts/pdf.nu
 use ~/.config/nushell/scripts/typst.nu
 use ~/.config/nushell/scripts/frg.nu
 
-# Ctrl-G: turn the prompt buffer into a command, and leave the Enter to you.
+# --- Keybindings ---
 #
-# Type what you want in plain English, press Ctrl-G, and the buffer is replaced
-# by a command you can read, edit, then run — or discard with Ctrl-C. Nothing
-# executes on your behalf: `commandline edit -r` deliberately omits `--accept`.
+# The handlers live in keys.nu so they can be called by hand and tested; this
+# only binds them. Nothing here executes a command on your behalf: the two that
+# produce one rewrite the prompt buffer and stop, because `commandline edit -r`
+# omits `--accept`.
 #
-# The call is synchronous and takes a second or two, so the prompt sits still
-# until it returns.
-def zen-suggest [] {
-    let request: string = (commandline | str trim)
-    if ($request | is-empty) { return }
-
-    let suggestion: string = try {
-        zen cmd $request
-    } catch {|err|
-        print $"\nzen cmd failed: ($err.msg | lines | first)"
-        return
-    }
-
-    if ($suggestion | is-empty) { return }
-
-    # `zen cmd` targets bash, which models write far more reliably than nu, so
-    # the result is wrapped rather than pasted bare — bash syntax dropped into
-    # a nu prompt is a syntax error, not a command. Single quotes are closed
-    # and reopened around any the command itself contains.
-    let quoted: string = ($suggestion | str replace --all "'" "'\\''")
-    commandline edit -r $"bash -c '($quoted)'"
-}
-
+#   Ctrl-G  English in the buffer -> a runnable command in the buffer
+#   Alt-G   explain what is in the buffer, leaving it untouched
+#   Alt-F   the last command failed -> a corrected one in the buffer
+#   Ctrl-O  open the buffer in $env.config.buffer_editor
+#
+# Bindings are plain records, so they are filtered before being appended and
+# re-sourcing this file replaces rather than stacks them.
 $env.config.keybindings = (
     $env.config.keybindings?
     | default []
-    | where name != zen_suggest      # idempotent if this file is re-sourced
-    | append {
-        name: zen_suggest
-        modifier: control
-        keycode: char_g
-        mode: [emacs vi_insert]
-        event: { send: executehostcommand, cmd: "zen-suggest" }
-    }
+    | where name not-in [zen_suggest zen_explain zen_fix zen_editor]
+    | append [
+        {
+            name: zen_suggest
+            modifier: control
+            keycode: char_g
+            mode: [emacs vi_insert]
+            event: { send: executehostcommand, cmd: "keys suggest" }
+        }
+        {
+            name: zen_explain
+            modifier: alt
+            keycode: char_g
+            mode: [emacs vi_insert]
+            event: { send: executehostcommand, cmd: "keys explain" }
+        }
+        {
+            name: zen_fix
+            modifier: alt
+            keycode: char_f
+            mode: [emacs vi_insert]
+            event: { send: executehostcommand, cmd: "keys fix" }
+        }
+        {
+            name: zen_editor
+            modifier: control
+            keycode: char_o
+            mode: [emacs vi_insert]
+            event: { send: openeditor }
+        }
+    ]
 )

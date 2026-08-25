@@ -402,10 +402,76 @@ steps, join them into a single line using the shell's own syntax.
 Prefer widely available tools. Prefer options that are safe to run twice.
 Never invent flags; if you are unsure a flag exists, use a simpler form."
 
-    let response: record = (request $request $context $model $system null 400 null null)
+    # 2000, not a few hundred: reasoning models spend the budget before
+    # emitting anything, and kimi-k3 has been seen using 353 reasoning tokens
+    # on a one-line request. Too small a cap finishes with reason "length" and
+    # nothing usable in the message.
+    let response: record = (request $request $context $model $system null 2000 null null)
     let suggestion: string = (
         text-of (resolve-protocol $model null) $response | unfence
     )
     remember "cmd" $model null $request $suggestion $response
     $suggestion
+}
+
+# The shape a proposed command comes back in.
+const PROPOSAL_SCHEMA = {
+    type: "object",
+    properties: {
+        shell: {type: "string", enum: ["bash" "nu" "fish" "zsh"]},
+        command: {type: "string"},
+        destructive: {type: "boolean"}
+    },
+    required: ["shell" "command" "destructive"],
+    additionalProperties: false
+}
+
+# Ask for a command as structured data rather than as text.
+#
+# Returns {shell, command, destructive}, so the caller can dispatch on the
+# shell instead of guessing, and can gate on `destructive` before running
+# anything. Nothing is executed here.
+#
+# This uses `response_format: json_schema`, which is a chat-completions
+# feature. Anthropic expresses the same idea through a forced tool call and
+# google through `responseSchema`, so unlike `chat` this does not work across
+# every protocol; the model must be one that zen routes to /chat/completions.
+#
+# Note on --max-tokens: reasoning models spend the budget before emitting
+# anything. kimi-k3 used 353 reasoning tokens on a one-line request, so a cap
+# that looks generous for the output alone will truncate to a `length` finish
+# with nothing usable in it.
+export def propose [
+    request: string                                  # What you want, in English
+    --model (-m): string@model-names = "kimi-k3"     # Must route to openai-chat
+    --max-tokens: int = 2000                         # Includes reasoning tokens
+]: [nothing -> record, string -> record] {
+    let context: any = $in
+    let wire: string = (protocol-for $model)
+    if $wire != "openai-chat" {
+        error make {
+            msg: $"propose needs a chat-completions model; ($model) speaks ($wire)"
+        }
+    }
+
+    let content: string = if ($context | is-empty) {
+        $request
+    } else {
+        $"($request)\n\n---\n($context)"
+    }
+    let body: record = {
+        model: $model,
+        max_tokens: $max_tokens,
+        messages: [{role: "user", content: $content}],
+        response_format: {
+            type: "json_schema",
+            json_schema: {name: "proposal", strict: true, schema: $PROPOSAL_SCHEMA}
+        }
+    }
+
+    let response: record = (send $wire $model $body)
+    let raw: string = (text-of $wire $response)
+    let proposal: record = ($raw | from json)
+    remember "propose" $model null $request $raw $response
+    $proposal
 }
