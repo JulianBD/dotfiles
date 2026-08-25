@@ -2,6 +2,7 @@
 README.md
 AGENTS.md
 LICENSE
+models
 *.plan.yaml
 session-*.md
 
