@@ -21,14 +21,14 @@ export {{ $k }}={{ $v | quote }}
 
 # --- Secrets (from gopass, gated per-machine by feature toggles) ---
 {{ if .github_token -}}
-export GITHUB_TOKEN={{ gopass "chezmoi/github-token" | quote }}
+export GITHUB_TOKEN="$(gh auth token 2>/dev/null)"
 {{ end -}}
 {{ if .atlassian -}}
-export ATLASSIAN_API_TOKEN={{ gopass "chezmoi/atlassian-token" | quote }}
+export ATLASSIAN_API_TOKEN="$(gopass show --password chezmoi/atlassian-token 2>/dev/null)"
 {{ end -}}
 {{ if .ai_keys -}}
-export ANTHROPIC_API_KEY={{ gopass "chezmoi/anthropic-api-key" | quote }}
-export OPENAI_API_KEY={{ gopass "chezmoi/openai-api-key" | quote }}
+export ANTHROPIC_API_KEY="$(gopass show --password chezmoi/anthropic-api-key 2>/dev/null)"
+export OPENAI_API_KEY="$(gopass show --password chezmoi/openai-api-key 2>/dev/null)"
 {{ end -}}
 
 {{ if .cert_path -}}

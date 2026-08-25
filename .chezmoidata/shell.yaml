@@ -1,5 +1,10 @@
 shell:
   env:
+    # Keeps nushell's config in ~/.config/nushell instead of macOS's
+    # ~/Library/Application Support/nushell. Nushell honours XDG_CONFIG_HOME on
+    # every platform; data (history, plugins) stays under Application Support,
+    # since that follows XDG_DATA_HOME, which is deliberately left alone.
+    XDG_CONFIG_HOME: "$HOME/.config"
     BAT_THEME: "base16"
     IGNORE_AUTH_TEST: "true"
     IGNORE_HOST_CONF: "true"

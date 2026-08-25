@@ -28,14 +28,14 @@ set -gx {{ $k }} {{ $v | quote }}
 
 # --- Secrets (from gopass, gated per-machine by feature toggles) ---
 {{ if .github_token -}}
-set -gx GITHUB_TOKEN {{ gopass "chezmoi/github-token" | quote }}
+set -gx GITHUB_TOKEN (gh auth token 2>/dev/null)
 {{ end -}}
 {{ if .atlassian -}}
-set -gx ATLASSIAN_API_TOKEN {{ gopass "chezmoi/atlassian-token" | quote }}
+set -gx ATLASSIAN_API_TOKEN (gopass show --password chezmoi/atlassian-token 2>/dev/null)
 {{ end -}}
 {{ if .ai_keys -}}
-set -gx ANTHROPIC_API_KEY {{ gopass "chezmoi/anthropic-api-key" | quote }}
-set -gx OPENAI_API_KEY {{ gopass "chezmoi/openai-api-key" | quote }}
+set -gx ANTHROPIC_API_KEY (gopass show --password chezmoi/anthropic-api-key 2>/dev/null)
+set -gx OPENAI_API_KEY (gopass show --password chezmoi/openai-api-key 2>/dev/null)
 {{ end -}}
 
 {{ if .cert_path -}}

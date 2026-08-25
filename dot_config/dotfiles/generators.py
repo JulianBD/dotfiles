@@ -9,8 +9,57 @@ the .get() default is explicit per-generator, not a generic fallback chain.
 """
 
 import json
+import plistlib
+import shutil
 import subprocess
 from pathlib import Path
+
+
+def _rgb(color: str) -> tuple[int, int, int]:
+    """Split a '#rrggbb' string into integer channels."""
+    h = color.lstrip("#")
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def _relative_luminance(color: str) -> float:
+    """WCAG relative luminance of a hex color."""
+    channels = []
+    for c in _rgb(color):
+        c /= 255
+        channels.append(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = channels
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast_ratio(a: str, b: str) -> float:
+    """WCAG contrast ratio between two hex colors (1.0 to 21.0)."""
+    hi, lo = sorted((_relative_luminance(a), _relative_luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def readable(color: str, bg: str, fg: str, min_ratio: float = 4.5) -> str:
+    """Nudge `color` toward `fg` until it clears `min_ratio` against `bg`.
+
+    Prot's palettes tune fg-main for body-text contrast but let accent
+    colors sit lower — fine inside Emacs, marginal for terminal renderers
+    that paint whole words in an accent. Blending toward fg-main (rather
+    than toward black/white) keeps the hue recognisable while guaranteeing
+    the result is legible on this theme's background.
+    """
+    if contrast_ratio(color, bg) >= min_ratio:
+        return color
+    cr, cg, cb = _rgb(color)
+    fr, fg_, fb = _rgb(fg)
+    for step in range(1, 21):
+        t = step / 20
+        blended = "#{:02x}{:02x}{:02x}".format(
+            round(cr + (fr - cr) * t),
+            round(cg + (fg_ - cg) * t),
+            round(cb + (fb - cb) * t),
+        )
+        if contrast_ratio(blended, bg) >= min_ratio:
+            return blended
+    return fg
 
 
 def hex_strip(color: str) -> str:
@@ -368,8 +417,15 @@ def generate_glamour(palette: dict, name: str, variant: str, roles: dict | None 
     out.parent.mkdir(parents=True, exist_ok=True)
     r = roles or {}
 
+    bg   = palette["bg-main"]
     fg   = palette["fg-main"]
-    dim  = get(palette, "fg-dim", fg)
+
+    # Glamour paints entire words in an accent against the terminal
+    # background, so every color here goes through the contrast floor.
+    def rd(color, min_ratio=4.5):
+        return readable(color, bg, fg, min_ratio)
+
+    dim  = rd(get(palette, "fg-dim", fg), 4.0)
     red     = get(palette, "red", fg)
     green   = get(palette, "green", fg)
     yellow  = get(palette, "yellow", fg)
@@ -381,21 +437,30 @@ def generate_glamour(palette: dict, name: str, variant: str, roles: dict | None 
     cyan_w    = get(palette, "cyan-warmer", cyan)
 
     # Syntax roles
-    c_keyword   = r.get("keyword", get(palette, "magenta-cooler", magenta))
-    c_function  = r.get("function", magenta)
-    c_string    = r.get("string", get(palette, "yellow-warmer", yellow))
-    c_type      = r.get("type", cyan_w)
-    c_constant  = r.get("constant", get(palette, "magenta-cooler", magenta))
-    c_comment   = r.get("comment", dim)
-    c_operator  = r.get("operator", red)
-    c_builtin   = r.get("builtin", blue_w)
-    c_preproc   = r.get("preprocessor", cyan)
-    c_tag       = r.get("tag", magenta)
-    c_attribute = r.get("attribute", cyan)
-    c_number    = r.get("number", cyan)
-    c_docstring = r.get("docstring", get(palette, "green-cooler", green))
-    c_namespace = r.get("namespace", red)
-    c_property  = r.get("property", blue)
+    c_keyword   = rd(r.get("keyword", get(palette, "magenta-cooler", magenta)))
+    c_function  = rd(r.get("function", magenta))
+    c_string    = rd(r.get("string", get(palette, "yellow-warmer", yellow)))
+    c_type      = rd(r.get("type", cyan_w))
+    c_constant  = rd(r.get("constant", get(palette, "magenta-cooler", magenta)))
+    c_comment   = rd(r.get("comment", dim), 4.0)
+    c_operator  = rd(r.get("operator", red))
+    c_builtin   = rd(r.get("builtin", blue_w))
+    c_preproc   = rd(r.get("preprocessor", cyan))
+    c_tag       = rd(r.get("tag", magenta))
+    c_attribute = rd(r.get("attribute", cyan))
+    c_number    = rd(r.get("number", cyan))
+    c_docstring = rd(r.get("docstring", get(palette, "green-cooler", green)))
+    c_namespace = rd(r.get("namespace", red))
+    c_property  = rd(r.get("property", blue))
+
+    # Non-syntax accents used for headings, links and diff markers
+    red     = rd(red)
+    green   = rd(green)
+    yellow  = rd(yellow)
+    blue    = rd(blue)
+    magenta = rd(magenta)
+    cyan    = rd(cyan)
+    cyan_w  = rd(cyan_w)
 
     style = {
         "document": {"block_prefix": "\n", "block_suffix": "\n", "color": fg, "margin": 2},
@@ -467,6 +532,180 @@ def generate_glamour(palette: dict, name: str, variant: str, roles: dict | None 
 
     out.write_text(json.dumps(style, indent=2) + "\n")
     print(f"Generated {out}")
+
+
+# ---------------------------------------------------------------------------
+# bat (syntect / TextMate theme)
+# ---------------------------------------------------------------------------
+
+def generate_bat(palette: dict, name: str, variant: str, roles: dict | None = None):
+    """Write ~/.config/bat/themes/prot-current.tmTheme and rebuild bat's cache.
+
+    bat reads TextMate themes through syntect, and only sees them after
+    `bat cache --build` — so the rebuild is part of generating the theme,
+    not a separate step.
+    """
+    out = Path.home() / ".config/bat/themes/prot-current.tmTheme"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    r = roles or {}
+
+    bg = palette["bg-main"]
+    fg = palette["fg-main"]
+
+    def rd(color, min_ratio=4.5):
+        return readable(color, bg, fg, min_ratio)
+
+    red     = get(palette, "red", fg)
+    green   = get(palette, "green", fg)
+    yellow  = get(palette, "yellow", fg)
+    blue    = get(palette, "blue", fg)
+    magenta = get(palette, "magenta", fg)
+    cyan    = get(palette, "cyan", fg)
+
+    red_c     = get(palette, "red-cooler", red)
+    green_f   = get(palette, "green-faint", green)
+    blue_w    = get(palette, "blue-warmer", blue)
+    cyan_w    = get(palette, "cyan-warmer", cyan)
+    cyan_f    = get(palette, "cyan-faint", cyan)
+    magenta_w = get(palette, "magenta-warmer", magenta)
+    magenta_c = get(palette, "magenta-cooler", magenta)
+
+    fg_dim = get(palette, "fg-dim", fg)
+
+    # Same role vocabulary as the Helix generator, so a file looks the
+    # same whether it is opened in Helix or paged through bat.
+    c_kw      = rd(r.get("keyword", magenta_c))
+    c_fn      = rd(r.get("function", magenta))
+    c_str     = rd(r.get("string", blue_w))
+    c_type    = rd(r.get("type", cyan))
+    c_var     = rd(r.get("variable", cyan_w))
+    c_const   = rd(r.get("constant", blue))
+    c_comment = rd(r.get("comment", fg_dim), 4.0)
+    c_op      = rd(r.get("operator", magenta))
+    c_tag     = rd(r.get("tag", blue))
+    c_attr    = rd(r.get("attribute", red))
+    c_ns      = rd(r.get("namespace", cyan_w))
+    c_ctor    = rd(r.get("constructor", magenta))
+    c_builtin = rd(r.get("builtin", magenta_w))
+    c_preproc = rd(r.get("preprocessor", red_c))
+    c_doc     = rd(r.get("docstring", green_f))
+    c_num     = rd(r.get("number", fg))
+    c_prop    = rd(r.get("property", blue))
+
+    fg_added   = rd(get(palette, "fg-added", green))
+    fg_removed = rd(get(palette, "fg-removed", red))
+    fg_changed = rd(get(palette, "fg-changed", yellow))
+
+    def rule(rule_name, scope, color=None, style=None, background=None):
+        settings = {}
+        if color:
+            settings["foreground"] = color
+        if background:
+            settings["background"] = background
+        if style:
+            settings["fontStyle"] = style
+        return {"name": rule_name, "scope": scope, "settings": settings}
+
+    globals_ = {
+        "background": bg,
+        "foreground": fg,
+        "caret": get(palette, "cursor", fg),
+        "lineHighlight": get(palette, "bg-hl-line", bg),
+        "selection": get(palette, "bg-region", get(palette, "bg-active", bg)),
+        "selectionForeground": get(palette, "fg-region", fg),
+        "gutter": bg,
+        "gutterForeground": rd(fg_dim, 3.0),
+        "invisibles": rd(fg_dim, 3.0),
+        "findHighlight": get(palette, "bg-search-current", get(palette, "bg-active", bg)),
+    }
+
+    settings = [{"settings": globals_}]
+    settings += [
+        rule("Comment", "comment, punctuation.definition.comment",
+             c_comment, "italic"),
+        rule("Documentation", "comment.block.documentation, string.quoted.docstring",
+             c_doc, "italic"),
+
+        rule("String", "string, string.quoted, punctuation.definition.string",
+             c_str),
+        rule("String regex", "string.regexp", c_kw),
+        rule("Escape sequence", "constant.character.escape", c_str),
+
+        rule("Number", "constant.numeric", c_num),
+        rule("Language constant", "constant.language, constant.other", c_const),
+
+        rule("Keyword", "keyword, keyword.control", c_kw),
+        rule("Operator", "keyword.operator, punctuation.separator.operator", c_op),
+        rule("Preprocessor", "keyword.control.import, keyword.other.directive, "
+                             "meta.preprocessor, entity.name.function.preprocessor",
+             c_preproc),
+
+        rule("Storage", "storage, storage.modifier", c_kw),
+        rule("Storage type", "storage.type", c_type),
+
+        rule("Function", "entity.name.function, meta.function-call, "
+                         "variable.function", c_fn),
+        rule("Builtin function", "support.function, support.macro", c_builtin),
+
+        rule("Type", "entity.name.type, entity.name.class, entity.name.struct, "
+                     "entity.name.enum, support.type, support.class", c_type),
+        rule("Inherited class", "entity.other.inherited-class", c_type, "italic"),
+        rule("Constructor", "entity.name.function.constructor, "
+                            "entity.name.type.constructor", c_ctor),
+        rule("Namespace", "entity.name.namespace, entity.name.module, "
+                          "support.module, meta.namespace", c_ns),
+        rule("Builtin constant", "support.constant", c_const),
+
+        rule("Variable", "variable, variable.other", fg),
+        rule("Parameter", "variable.parameter", c_var),
+        rule("Language variable", "variable.language", c_builtin),
+        rule("Property", "variable.other.member, meta.object-literal.key, "
+                         "support.type.property-name", c_prop),
+
+        rule("Tag", "entity.name.tag", c_tag),
+        rule("Tag attribute", "entity.other.attribute-name", c_attr),
+        rule("Tag punctuation", "punctuation.definition.tag", c_tag),
+
+        rule("Punctuation", "punctuation, meta.brace, meta.delimiter", fg),
+        rule("Invalid", "invalid, invalid.illegal", rd(red)),
+        rule("Deprecated", "invalid.deprecated", rd(yellow), "italic"),
+
+        # Markdown and diff — bat pages a lot of both
+        rule("Markup heading", "markup.heading, entity.name.section",
+             rd(blue), "bold"),
+        rule("Markup bold", "markup.bold", None, "bold"),
+        rule("Markup italic", "markup.italic", None, "italic"),
+        rule("Markup link", "markup.underline.link, string.other.link",
+             rd(cyan), "underline"),
+        rule("Markup raw", "markup.raw, markup.inline.raw", c_doc),
+        rule("Markup quote", "markup.quote", c_comment, "italic"),
+        rule("Markup list", "markup.list punctuation.definition.list_item",
+             rd(blue)),
+        rule("Diff inserted", "markup.inserted", fg_added),
+        rule("Diff deleted", "markup.deleted", fg_removed),
+        rule("Diff changed", "markup.changed", fg_changed),
+    ]
+
+    theme = {
+        "name": "prot-current",
+        "author": f"generated from palette: {name}",
+        "colorSpaceName": "sRGB",
+        "semanticClass": f"theme.{variant}.prot-current",
+        "settings": settings,
+    }
+
+    out.write_bytes(plistlib.dumps(theme, sort_keys=False))
+    print(f"Generated {out}")
+
+    # bat only picks up custom themes from its cache
+    bat = shutil.which("bat")
+    if not bat:
+        print("Warning: bat not on PATH, skipping cache rebuild")
+        return
+    result = subprocess.run([bat, "cache", "--build"],
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"Warning: bat cache --build failed: {result.stderr.strip()}")
 
 
 # ---------------------------------------------------------------------------
@@ -1412,6 +1651,7 @@ ALL_GENERATORS = [
     generate_borders,
     generate_wallpaper,
     generate_glamour,
+    generate_bat,
     generate_helix,
     generate_zed,
     generate_obsidian,

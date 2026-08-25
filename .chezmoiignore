@@ -81,3 +81,6 @@ Library/Application Support/Tuna/ProxyHistory.plist
 # Ghostty: theme pipeline outputs (theme CLI regenerates)
 .config/ghostty/themes
 .config/ghostty/theme-current
+
+# bat: generated tmTheme (theme CLI regenerates, then rebuilds bat's cache)
+.config/bat/themes
