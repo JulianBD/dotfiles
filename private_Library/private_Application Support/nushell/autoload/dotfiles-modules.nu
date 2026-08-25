@@ -9,6 +9,7 @@
 # Adding a module means adding a line here.
 
 use ~/.config/nushell/scripts/zen.nu
+use ~/.config/nushell/scripts/store.nu
 use ~/.config/nushell/scripts/openai.nu
 use ~/.config/nushell/scripts/pdf.nu
 use ~/.config/nushell/scripts/typst.nu

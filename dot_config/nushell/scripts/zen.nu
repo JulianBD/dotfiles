@@ -5,6 +5,9 @@
 #   zen chat "explain nushell closures in one sentence"
 #   open notes.md | zen chat "summarize this" -m gpt-5.6-sol
 #   zen chat raw "hi" -m kimi-k3        # whole response record
+#   zen cmd "every m4a here to wav"     # one command, ready to run
+#   zen chat "hi" --session work        # continue a stored conversation
+#   store history | last 5              # every call, one-off or not
 #
 # Zen speaks each model's *native* protocol rather than one unified API, so
 # the endpoint is picked from the model id:
@@ -16,15 +19,29 @@
 # --protocol in that case.
 
 use ./http.nu
+use ./store.nu
 
 const BASE = "https://opencode.ai/zen/v1"
 
 # The wire protocols this module knows how to speak.
 const PROTOCOLS = ["anthropic" "openai-responses" "google" "openai-chat"]
 
+# Shells `zen cmd` knows how to target.
+const SHELLS = ["nu" "bash" "fish" "zsh"]
+
+# Completer for --shell.
+def shell-names []: nothing -> list<string> {
+    $SHELLS
+}
+
 # Completer and validation source for --protocol.
 def protocol-names []: nothing -> list<string> {
     $PROTOCOLS
+}
+
+# Completer for --session: the sessions already on disk.
+def session-names []: nothing -> list<string> {
+    try { store sessions | get name } catch { [] }
 }
 
 # Completer for --model: the live catalogue, empty when unreachable.
@@ -76,11 +93,19 @@ export def models [
     if $pattern == null { $rows } else { $rows | where id =~ $pattern }
 }
 
-# Build the provider-native request body for one prompt.
+# Build the provider-native request body from normalized turns.
+#
+# Turns arrive as `{role, content}` with roles "user" and "assistant", which is
+# the shape sessions are stored in. Each branch below renders that one shape
+# into its provider's wire format — anthropic takes it nearly as-is, google
+# renames the assistant role to "model" and wraps content in parts, and the
+# chat-completions branch prepends the system prompt as a message rather than
+# passing it beside them. Storing normalized and rendering here is what lets a
+# session begin against one model and continue against another.
 def body-for [
     protocol: string           # One of $PROTOCOLS
     model: string              # Model id
-    content: string            # User message
+    turns: list<record>        # Normalized turns: {role, content}
     max_tokens: int            # Response length cap
     --system: any              # System prompt, or null
     --temperature: any         # Sampling temperature, or null
@@ -92,21 +117,26 @@ def body-for [
             {
                 model: $model,
                 max_tokens: $max_tokens,
-                messages: [{role: "user", content: $content}]
+                messages: $turns
             }
             | merge (if $system == null { {} } else { {system: $system} })
             | merge $sampling
         }
         "openai-responses" => {
-            {model: $model, input: $content, max_output_tokens: $max_tokens}
+            {model: $model, input: $turns, max_output_tokens: $max_tokens}
             | merge (if $system == null { {} } else { {instructions: $system} })
             | merge $sampling
         }
         "google" => {
             {
-                contents: [
-                    {role: "user", parts: [{text: $content}]}
-                ]
+                contents: (
+                    $turns | each {|turn|
+                        {
+                            role: (if $turn.role == "assistant" { "model" } else { $turn.role }),
+                            parts: [{text: $turn.content}]
+                        }
+                    }
+                )
             }
             | merge (
                 if $system == null { {} } else {
@@ -118,7 +148,7 @@ def body-for [
         _ => {
             let messages: list<record> = (
                 (if $system == null { [] } else { [{role: "system", content: $system}] })
-                | append {role: "user", content: $content}
+                | append $turns
             )
             {model: $model, messages: $messages, max_tokens: $max_tokens} | merge $sampling
         }
@@ -181,6 +211,56 @@ def text-of [
     }
 }
 
+# Token usage out of a response, whatever the provider called the field.
+def usage-of [
+    response: record  # Provider-native response
+]: nothing -> record {
+    $response | get -o usage | default ($response | get -o usageMetadata) | default {}
+}
+
+# Record a completed call, and extend the session ledger when there is one.
+#
+# History is written for every call including one-offs; the session file only
+# when one was named. Nothing reads history back into a request, so logging a
+# one-off records it without making any later call depend on it.
+def remember [
+    kind: string      # Which shape of request this was
+    model: string     # Model id
+    session: any      # Session name, or null
+    prompt: string    # What was asked
+    reply: string     # What came back
+    response: record  # Provider-native response, for usage
+]: nothing -> nothing {
+    store history append {
+        model: $model,
+        kind: $kind,
+        session: $session,
+        prompt: $prompt,
+        reply: $reply,
+        usage: (usage-of $response)
+    }
+    if $session != null {
+        store session append $session [
+            {role: "user", content: $prompt}
+            {role: "assistant", content: $reply}
+        ]
+    }
+}
+
+# Resolve which session a call belongs to, if any.
+def resolve-session [
+    name: any   # Explicit --session value, or null
+    resume: bool  # Whether --resume was given
+]: nothing -> any {
+    if $name != null { return $name }
+    if not $resume { return null }
+    let recent: list<string> = (store sessions | get name)
+    if ($recent | is-empty) {
+        error make {msg: "no sessions yet; start one with --session <name>"}
+    }
+    $recent | first
+}
+
 # Resolve and validate the protocol for a request.
 def resolve-protocol [
     model: string  # Model id
@@ -208,15 +288,19 @@ def request [
     temperature: any  # Sampling temperature, or null
     max_tokens: int   # Response length cap
     protocol: any     # Forced wire protocol, or null
+    history: any      # Prior normalized turns, or null
 ]: nothing -> record {
     let content: string = if ($piped | is-empty) {
         $prompt
     } else {
         $"($prompt)\n\n---\n($piped)"
     }
+    let turns: list<record> = (
+        ($history | default []) | append {role: "user", content: $content}
+    )
     let wire: string = (resolve-protocol $model $protocol)
     let body: record = (
-        body-for $wire $model $content $max_tokens --system $system --temperature $temperature
+        body-for $wire $model $turns $max_tokens --system $system --temperature $temperature
     )
     send $wire $model $body
 }
@@ -232,10 +316,16 @@ export def "chat raw" [
     --max-tokens: int = 4096                              # Response length cap
     --protocol (-p): string@protocol-names                # Force a wire protocol
 ]: [nothing -> record, string -> record] {
-    request $prompt $in $model $system $temperature $max_tokens $protocol
+    request $prompt $in $model $system $temperature $max_tokens $protocol null
 }
 
-# Send a single-turn prompt and return the assistant's text.
+# Send a prompt and return the assistant's text.
+#
+# One-off by default: nothing from an earlier call is sent, and nothing this
+# call writes will be sent later. `--session` opts into a conversation, loading
+# that session's turns as context and appending this exchange to it.
+#
+# Either way the call is logged to history, which is never replayed.
 #
 # Piped input is appended to the prompt as context, under a `---` separator.
 export def chat [
@@ -245,11 +335,19 @@ export def chat [
     --temperature (-t): float                             # Sampling temperature
     --max-tokens: int = 4096                              # Response length cap
     --protocol (-p): string@protocol-names                # Force a wire protocol
+    --session: string@session-names                       # Continue this named session
+    --resume (-r)                                         # Continue the most recent session
 ]: [nothing -> string, string -> string] {
+    let piped: any = $in
+    let name: any = (resolve-session $session $resume)
+    let prior: list<record> = if $name == null { [] } else { store session load $name }
+
     let response: record = (
-        request $prompt $in $model $system $temperature $max_tokens $protocol
+        request $prompt $piped $model $system $temperature $max_tokens $protocol $prior
     )
-    text-of (resolve-protocol $model $protocol) $response
+    let reply: string = (text-of (resolve-protocol $model $protocol) $response)
+    remember "chat" $model $name $prompt $reply $response
+    $reply
 }
 
 # Token usage for one call, handy for comparing models.
@@ -259,6 +357,55 @@ export def usage [
     prompt: string                                        # User message
     --model (-m): string@model-names = "claude-sonnet-5"  # Any id from `zen models`
 ]: nothing -> record {
-    let response: record = (request $prompt null $model null null 4096 null)
-    $response | get -o usage | default ($response | get -o usageMetadata) | default {}
+    let response: record = (request $prompt null $model null null 4096 null null)
+    usage-of $response
+}
+
+# Strip the packaging a model puts around a command.
+#
+# Code fences, a leading `$` prompt marker and surrounding blank lines all show
+# up even when the system prompt forbids them, so this is belt and braces
+# rather than a substitute for asking.
+def unfence []: string -> string {
+    $in
+    | lines
+    | where {|line| not ($line | str trim | str starts-with "```") }
+    | str join "\n"
+    | str trim
+    | str replace -r '^\$\s+' ''
+}
+
+# Ask for a single command line and get it back bare, ready to inspect and run.
+#
+# One-off by design: refining a command is better served by editing it than by
+# a conversation, so `cmd` takes no --session. It is still logged to history,
+# which is what makes "what was that incantation last week" answerable.
+#
+# Nothing is executed here — the point is that you read it first. The Ctrl-G
+# keybinding in the autoload feeds the current prompt buffer through this and
+# replaces the buffer with the result, leaving the Enter to you.
+#
+# Piped input is passed along as context:
+#   ls | zen cmd "delete the ones older than a year"
+export def cmd [
+    request: string                                       # What you want, in English
+    --model (-m): string@model-names = "claude-sonnet-5"  # Any id from `zen models`
+    --shell: string@shell-names = "bash"                  # Shell to target
+]: [nothing -> string, string -> string] {
+    let context: any = $in
+    let system: string = $"You turn a request into exactly one ($shell) command line.
+
+Reply with the command and nothing else. No explanation, no commentary, no
+markdown, no code fences, no leading prompt marker. If the task needs several
+steps, join them into a single line using the shell's own syntax.
+
+Prefer widely available tools. Prefer options that are safe to run twice.
+Never invent flags; if you are unsure a flag exists, use a simpler form."
+
+    let response: record = (request $request $context $model $system null 400 null null)
+    let suggestion: string = (
+        text-of (resolve-protocol $model null) $response | unfence
+    )
+    remember "cmd" $model null $request $suggestion $response
+    $suggestion
 }

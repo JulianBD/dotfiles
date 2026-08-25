@@ -50,6 +50,13 @@ export def unwrap [
     label: string = "http"  # Prefix for the raised message, e.g. the API name
 ]: any -> any {
     let response = $in
+
+    # A well-formed API error is a record; a proxy or gateway failure is often
+    # bare text, and `get` refuses a string input rather than returning null.
+    if ($response | describe) !~ '^(record|table|list)' {
+        error make {msg: $"($label): ($response | into string)"}
+    }
+
     let payload = ($response | get -o error)
     if $payload != null {
         let message: string = if ($payload | describe | str starts-with "record") {
