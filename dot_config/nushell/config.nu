@@ -18,6 +18,7 @@ $env.config.show_banner = false
 use ~/.config/nushell/scripts/zen.nu
 use ~/.config/nushell/scripts/store.nu
 use ~/.config/nushell/scripts/keys.nu
+use ~/.config/nushell/scripts/olog.nu
 use ~/.config/nushell/scripts/openai.nu
 use ~/.config/nushell/scripts/pdf.nu
 use ~/.config/nushell/scripts/typst.nu
