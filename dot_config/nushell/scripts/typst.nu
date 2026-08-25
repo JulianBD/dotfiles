@@ -14,13 +14,15 @@ export def preview [
     ...files: string  # Typst files; defaults to *.typ here
     --title (-t): string  # Browser tab title; defaults to the filename
 ]: nothing -> table<file: string, job: int> {
+    # Globs are expanded here rather than declared as a `glob` parameter, so
+    # that `typst preview *.typ` and an explicit list behave the same way.
     let targets: list<string> = if ($files | is-empty) {
         ls *.typ | get name
     } else {
-        $files
+        $files | each {|file| if ($file =~ '[*?]') { glob $file } else { [$file] } } | flatten
     }
     if ($targets | is-empty) {
-        error make {msg: "no .typ files given, and none in the current directory"}
+        error make {msg: "no .typ files matched, and none in the current directory"}
     }
     if $title != null and ($targets | length) > 1 {
         error make {msg: "--title names a single tab; pass one file, or let each tab take its filename"}

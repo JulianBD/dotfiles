@@ -35,7 +35,19 @@ export def check [
 
     # Resolved before the loop: an `error make` inside `each` surfaces as
     # "Eval block failed with pipeline input", burying the real reason.
-    let paths: list<string> = ($targets | each {|file| $file | path expand --no-symlink })
+    #
+    # Globs are expanded here rather than declared as a `glob` parameter, so
+    # that `frg check *.frg` and an explicit list behave the same way.
+    let paths: list<string> = (
+        $targets
+        | each {|file|
+            if ($file =~ '[*?]') { glob $file } else { [($file | path expand --no-symlink)] }
+        }
+        | flatten
+    )
+    if ($paths | is-empty) {
+        error make {msg: $"nothing matched: ($targets | str join ', ')"}
+    }
     let missing: list<string> = ($paths | where {|path| not ($path | path exists) })
     if ($missing | is-not-empty) {
         error make {msg: $"no such file: ($missing | str join ', ')"}
