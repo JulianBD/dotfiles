@@ -20,6 +20,7 @@
 
 use ./http.nu
 use ./store.nu
+use ./schema.nu
 
 const BASE = "https://opencode.ai/zen/v1"
 
@@ -427,23 +428,16 @@ Never invent flags; if you are unsure a flag exists, use a simpler form."
     $suggestion
 }
 
-# The shape a proposed command comes back in.
-const PROPOSAL_SCHEMA = {
-    type: "object",
-    properties: {
-        shell: {type: "string", enum: ["bash" "nu" "fish" "zsh"]},
-        command: {type: "string"},
-        destructive: {type: "boolean"}
-    },
-    required: ["shell" "command" "destructive"],
-    additionalProperties: false
-}
-
 # Ask for a command as structured data rather than as text.
 #
 # Returns {shell, command, destructive}, so the caller can dispatch on the
 # shell instead of guessing, and can gate on `destructive` before running
 # anything. Nothing is executed here.
+#
+# The schema is generated from schemas/proposal.ncl rather than written here,
+# so `zen propose` needs nickel on PATH. That is a real dependency, taken
+# deliberately: the alternative is a JSON Schema in this file and a validator
+# somewhere else, drifting apart.
 #
 # This uses `response_format: json_schema`, which is a chat-completions
 # feature. Anthropic expresses the same idea through a forced tool call and
@@ -478,13 +472,22 @@ export def propose [
         messages: [{role: "user", content: $content}],
         response_format: {
             type: "json_schema",
-            json_schema: {name: "proposal", strict: true, schema: $PROPOSAL_SCHEMA}
+            json_schema: {
+                name: "proposal",
+                strict: true,
+                schema: (schema json proposal)
+            }
         }
     }
 
     let response: record = (send $wire $model $body)
     let raw: string = (text-of $wire $response)
-    let proposal: record = ($raw | from json)
+
+    # Checked on the way back in as well as constrained on the way out. The
+    # schema and this check come from one nickel description, so they cannot
+    # disagree about which fields exist — and a contract can say things a JSON
+    # Schema cannot, which is why the return trip is worth making at all.
+    let proposal: record = ($raw | from json | schema check proposal)
     remember "propose" $model null $request $raw $response
     $proposal
 }

@@ -59,6 +59,10 @@ brew "tree"
 brew "watch"
 {{ if .dev_tools -}}
 brew "argc"
+# Contracts for the olog schemas: validates instance data against constraints
+# that JSON Schema cannot express, e.g. that every tool_result id matches a
+# tool_use id. Not in mise's registry, hence brew.
+brew "nickel"
 brew "fselect"
 brew "navi"
 brew "parallel"
