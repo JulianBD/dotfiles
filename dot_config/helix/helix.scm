@@ -1,6 +1,7 @@
 ;; Loaded first; every exported function becomes a typed command (:name).
 ;; Functions annotated with ;;@doc show their docs in the command picker.
 (require "helix/editor.scm")
+(require "helix/misc.scm")
 (require (prefix-in helix. "helix/commands.scm"))
 (require (prefix-in helix.static. "helix/static.scm"))
 (require "cogs/recentf.scm")
