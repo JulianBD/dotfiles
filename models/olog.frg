@@ -67,6 +67,120 @@ pred functorial {
   }
 }
 
+// §2.3 A fact: a declared equivalence between two paths. Definition 3.2.3's
+// third bullet, previously vacuous here because nothing declared any facts.
+//
+// A path needs to be a *sequence* of composable aspects, so it is a linked
+// list: `Id` is the empty path at a type, `Step` is one aspect followed by a
+// shorter path. This is the least machinery that supports composites, and it
+// is what a fact needs in order to say anything at all.
+abstract sig Path {
+  src: one Type,
+  tgt: one Type,
+  sends: set Element -> Element
+}
+sig Id extends Path {}
+sig Step extends Path {
+  head: one Aspect,
+  tail: one Path
+}
+
+pred pathsWellFormed {
+  all p: Id | p.src = p.tgt
+  all p: Step | {
+    p.head.dom = p.src         // the first arrow leaves the path's source
+    p.head.cod = p.tail.src    // and lands where the rest of the path begins
+    p.tail.tgt = p.tgt
+  }
+  all p: Step | p not in p.^tail   // a path is finite
+}
+
+// The action of a path is the composite of the actions of its aspects, with
+// the empty path acting as the identity on its type.
+pred pathAction {
+  all p: Id | p.sends = { e1: Element, e2: Element | e1 = e2 and e1.isa = p.src }
+  all p: Step | p.sends = (p.head.act) . (p.tail.sends)
+}
+
+sig Fact {
+  lhs: one Path,
+  rhs: one Path
+}
+
+pred factsWellFormed {
+  all f: Fact | f.lhs.src = f.rhs.src and f.lhs.tgt = f.rhs.tgt
+}
+
+// Definition 3.2.3's third bullet: an instance must send the two paths of a
+// declared fact to the *same* function.
+pred factsHold {
+  all f: Fact | f.lhs.sends = f.rhs.sends
+}
+
+// A full instance, in the sense of Definition 3.2.3: a set per type, a
+// function per aspect, and an equality of composites per declared fact.
+pred instance {
+  functorial
+  pathsWellFormed
+  pathAction
+  factsWellFormed
+  factsHold
+}
+
+// §4.1 A morphism of ologs, i.e. a functor between the categories they
+// present. Since an olog presents a category by generators and relations, a
+// functor out of it is determined by where the generators go — provided the
+// declared facts are respected, which `preservesFacts` below is what checks.
+//
+// A morphism may in general send an aspect to a whole *path*; this sends
+// aspects to single aspects, which is the special case the wire formats need.
+sig Translation {
+  onType:   set Type -> Type,
+  onAspect: set Aspect -> Aspect,
+  onPath:   set Path -> Path
+}
+
+pred translates[t: Translation, srcTypes: set Type, srcAspects: set Aspect, srcPaths: set Path] {
+  // total and single-valued on the source olog
+  all x: srcTypes   | one x.(t.onType)
+  all a: srcAspects | one a.(t.onAspect)
+  all p: srcPaths   | one p.(t.onPath)
+
+  // arrows are carried to arrows spanning the carried endpoints
+  all a: srcAspects | {
+    (a.(t.onAspect)).dom = (a.dom).(t.onType)
+    (a.(t.onAspect)).cod = (a.cod).(t.onType)
+  }
+
+  // paths are carried stepwise, so composites go to composites
+  all p: srcPaths & Id | {
+    p.(t.onPath) in Id
+    (p.(t.onPath)).src = (p.src).(t.onType)
+  }
+  all p: srcPaths & Step | {
+    p.(t.onPath) in Step
+    (p.(t.onPath)).head = (p.head).(t.onAspect)
+    (p.(t.onPath)).tail = (p.tail).(t.onPath)
+  }
+}
+
+// A morphism must carry each declared fact to a fact that also holds in the
+// target; otherwise it is only a graph morphism, not a functor.
+pred preservesFacts[t: Translation, srcFacts: set Fact] {
+  all eq: srcFacts | some img: Fact | {
+    img.lhs = (eq.lhs).(t.onPath)
+    img.rhs = (eq.rhs).(t.onPath)
+  }
+}
+
+// Where a morphism lands. `translates` alone does not confine the image, so
+// this is what says "into that olog and no other".
+pred mapsInto[t: Translation, srcTypes: set Type, srcAspects: set Aspect,
+              tgtTypes: set Type, tgtAspects: set Aspect] {
+  all x: srcTypes   | x.(t.onType)   in tgtTypes
+  all a: srcAspects | a.(t.onAspect) in tgtAspects
+}
+
 test expect {
   // An olog with instance data exists.
   instancesExist: {
@@ -108,4 +222,39 @@ test expect {
     some a: Aspect | some e, img: Element |
       img in e.(a.act) and img.isa != a.cod
   } is unsat
+
+  // Facts have content. If a fact declares that `f` followed by some path is
+  // the identity on f's domain, then f cannot collapse two elements: a split
+  // monomorphism is injective. Nothing outside `factsHold` forces this, so
+  // this test is what shows the third bullet of Definition 3.2.3 is now
+  // carrying weight rather than being satisfied vacuously.
+  factsForceInjectivity: {
+    instance
+    some f: Aspect, p: Path, eq: Fact | {
+      eq.lhs in Step
+      eq.lhs.head = f
+      eq.lhs.tail = p
+      eq.rhs in Id
+      eq.rhs.src = f.dom
+      some disj e1, e2: Element | {
+        e1.isa = f.dom
+        e2.isa = f.dom
+        e1.(f.act) = e2.(f.act)
+      }
+    }
+  } for 6 Element, 4 Path is unsat
+
+  // ...and that unsat is not for want of room: the same shape minus the
+  // collapsing pair is satisfiable in the same bounds.
+  splitMonoExists: {
+    instance
+    some f: Aspect, p: Path, eq: Fact | {
+      eq.lhs in Step
+      eq.lhs.head = f
+      eq.lhs.tail = p
+      eq.rhs in Id
+      eq.rhs.src = f.dom
+      some e: Element | e.isa = f.dom
+    }
+  } for 6 Element, 4 Path is sat
 }
