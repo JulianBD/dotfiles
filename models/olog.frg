@@ -4,14 +4,23 @@
 // Representation" (arXiv:1102.1889).
 //
 // This rung encodes the schema level (§2.1 types, §2.2 aspects) together with
-// the instance level (§3.2.3: an instance is a functor to Set — a set for each
-// type, a function for each aspect).
+// the instance level. Definition 3.2.3 asks an instance for three things: a set
+// per type, a function per aspect, and an equality of composites for each
+// declared fact. The third is vacuous here, because this rung declares no facts.
 //
 // Deliberately absent: facts / path equivalences (§2.3). Those require paths,
 // hence sequences of composable aspects, and nothing here needs to compose two
-// paths yet. Also absent: the rules of good practice (§2.1.1, §2.2.1), which
-// constrain the English text on boxes and arrows rather than the structure —
-// "a type begins with 'a' or 'an'" is not a claim this model can carry.
+// paths yet. §4.1 is what makes the omission harmless: an olog is "a
+// presentation of a category by generators (objects and arrows) and relations
+// (path congruences)", so a fact-free olog presents the free category on its
+// graph, and a functor out of a free category is determined by its action on
+// generators. `functorial` below therefore characterises functors, not merely
+// graph morphisms.
+//
+// Also absent: the rules of good practice (Rules 2.1.1 and 2.2.1 — numbered
+// environments, not sections), which constrain the English text on boxes and
+// arrows rather than the structure. "A type begins with 'a' or 'an'" is not a
+// claim this model can carry.
 
 // Tests are the whole point of this file, so there is nothing to look at in
 // the visualiser; without this, Forge opens Sterling and waits on stdin when
@@ -31,6 +40,12 @@ sig Aspect {
 }
 
 // §3.1.1 An instance of a type: a documented example of that distinction.
+//
+// `one Type` makes the extensions pairwise disjoint, which Definition 3.2.3
+// does not require — there, I(x) and I(y) are arbitrary sets and may overlap,
+// as `a woman is a person` invites. Disjointness costs nothing up to
+// isomorphism, since elements can always be tagged by type, and it is what
+// §4.2.2's key diagrams assume.
 sig Element {
   isa: one Type
 }
@@ -63,16 +78,20 @@ test expect {
       e1.(a.act) = e2.(a.act) and some e1.(a.act)
   } is sat
 
-  // §2.2.1, first invalid aspect: `a person has a child` is not an aspect,
-  // because a person may have two children. No functorial instance can
-  // exhibit a domain element with two images.
+  // The shape of §2.2.1's first invalid aspect, `a person has a child`: a
+  // person may have two children. Note what this does and does not show. It
+  // pins a consequence of `functorial` — no domain element has two images — and
+  // would catch a future edit that weakened the predicate. It does not refute
+  // that arrow, because the model holds no labels: §2.2.1 goes on to say the
+  // arrow "may not be wrong but simply reflect that the author has a strange
+  // world-view", and `has as inner child` is a perfectly valid aspect.
   noElementHasTwoImages: {
     functorial
     some a: Aspect | some e: Element | #(e.(a.act)) > 1
   } is unsat
 
-  // §2.2.1, restated: nor may a domain element have *no* image. "A person has
-  // a child" fails here too, for the childless.
+  // The other half of functionality: nor may a domain element have *no* image.
+  // "A person has a child" fails here too, for the childless.
   noDomainElementIsUnmapped: {
     functorial
     some a: Aspect | some e: Element |

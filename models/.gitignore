@@ -1,3 +1,4 @@
 # Build artifacts from `typst compile`
 *.pdf
 *.png
+reference/

@@ -1,41 +1,90 @@
 #import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge
 
-#set page(width: 16cm, height: auto, margin: 1.4cm)
+#set page(width: 17cm, height: auto, margin: 1.4cm)
 #set text(size: 10pt)
 #set par(justify: true)
+#show raw.where(block: true): it => block(
+  fill: luma(247), inset: 8pt, radius: 3pt, width: 100%, it,
+)
 
-= olog.frg
+// Excerpts are cut from the model at compile time, between two literal
+// anchors, so they are verbatim by construction. A renamed sig breaks the
+// build rather than silently leaving this document quoting code that is gone.
+#let model = read("olog.frg")
+#let excerpt(from, to) = {
+  let start = model.position(from)
+  if start == none { panic("olog.frg has no anchor: " + from) }
+  let stop = if to == none { model.len() } else { model.position(to) }
+  if stop == none { panic("olog.frg has no anchor: " + to) }
+  raw(model.slice(start, stop).trim(), block: true)
+}
+
+= olog.frg, walked through
 
 A Forge encoding of the olog, after Spivak & Kent, _Ologs: A Categorical
-Framework for Knowledge Representation_ (arXiv:1102.1889).
+Framework for Knowledge Representation_ (arXiv:1102.1889). This document walks
+the model in the order it is written; every code block below is cut from
+`olog.frg` itself at compile time.
 
 An olog is a category whose objects are *types* (§2.1, boxes labelled with a
 singular indefinite noun phrase) and whose arrows are *aspects* (§2.2, drawn
 from a domain of definition to a set of result values). Definition 3.2.3 gives
-the semantics we actually check: an *instance* of an olog is a functor to
-$bold("Set")$ — a set for each type, a function for each aspect.
+the semantics this model checks.
 
-== What the model contains
+== Turning the visualiser off
 
-#table(
-  columns: (auto, 1fr),
-  stroke: 0.4pt + luma(180),
-  [`sig Type`], [A box. Carries no structure: its English label is not something
-    this model can hold.],
-  [`sig Aspect`], [An arrow, with `dom` and `cod` fixing its endpoints, and
-    `act` giving its action on elements.],
-  [`sig Element`], [An instance of a type (§3.1.1) — a documented example of the
-    distinction the box names.],
-  [`pred functorial`], [The functor law, stated elementwise. This is the entire
-    content of "an aspect is a functional relationship".],
-)
+#excerpt("// Tests are the whole point", "// §2.1 A type")
 
-== The functor law as a commutative diagram
+The file is all `test expect` and no `run`, so there is nothing to look at.
+Without this option Forge opens Sterling and blocks on standard input when the
+run finishes, which is indistinguishable from a hang.
 
-The third clause of `functorial` — that an image lands in the codomain — is a
-path equivalence, so it can be drawn the way the paper draws facts (§2.3).
-Take the type of pairs $(a, e)$ where $a$ is an aspect and $e$ is an element of
-its domain. There are two ways to reach a type from such a pair, and the fact
+== A type
+
+#excerpt("// §2.1 A type", "// §2.2 An aspect")
+
+Empty, and deliberately so. A type in the paper is a box carrying English text,
+but the text is the one part a solver cannot check: "begins with 'a' or 'an'"
+and "refers to a distinction made and recognizable by the author" are rules for
+the author. What remains after the label is removed is bare identity, which is
+exactly `sig Type {}`.
+
+== An aspect
+
+#excerpt("// §2.2 An aspect", "// §3.1.1 An instance")
+
+`dom` and `cod` are the paper's own words — §2.2 calls $X$ "the domain of
+definition" and $Y$ "the set of result values". `act` is the aspect's action on
+instance data, and it is a `set Element -> Element` rather than a function
+because Forge has no function type here; the constraint that makes it a
+function lives in `functorial`.
+
+== An instance of a type
+
+#excerpt("// §3.1.1 An instance", "// §3.2.3 The functor law")
+
+The comment records a modelling decision worth being explicit about, since it
+is a place where the encoding is narrower than the paper.
+
+== The functor law
+
+#excerpt("// §3.2.3 The functor law", "test expect {")
+
+Three clauses, and they are the paper's own two rules for a function (§2.2:
+"each arrow must emanate from a dot in $X$ and point to a dot in $Y$"; "each dot
+in $X$ must have precisely one arrow emanating from it") split into the parts
+Forge needs stated separately. Clause one is totality and single-valuedness on
+the domain, clause two forbids an aspect acting outside its domain, clause three
+is the typing of results.
+
+This predicate is the entire content of the sentence "an aspect is a functional
+relationship". Everything the model can say about validity, it says here.
+
+== The typing clause, drawn as a fact
+
+Clause three is a path equivalence, so it can be drawn the way the paper draws
+facts (§2.3). Take the type of pairs $(a, e)$ where $a$ is an aspect and $e$ is
+an element of its domain. Two paths lead from there to a type, and the fact
 asserts they agree:
 
 #align(center, diagram(
@@ -52,54 +101,59 @@ asserts they agree:
   node((0.5, 0.5), text(1.3em)[✓]),
 ))
 
-Read the two paths aloud, as the paper instructs. Clockwise: "a pair $(a, e)$
-yields, via `act`, an element, which is a type." Anticlockwise: "a pair
-$(a, e)$ has as aspect an aspect, which has as `cod` a type." The checkmark
-declares them equal — which is exactly the Forge test `imagesRespectCodomain`,
-where the negation is `unsat`.
+Read the paths aloud, as the paper instructs. Clockwise: "a pair $(a, e)$
+yields, via `act`, an element, which is a type." Anticlockwise: "a pair $(a, e)$
+has as aspect an aspect, which has as `cod` a type." The checkmark declares them
+equal, which is clause three and the test `imagesRespectCodomain`.
 
-The domain clause is the same square with `act` replaced by the projection to
-$e$ and `cod` replaced by `dom`.
+Clauses one and two get no such diagram, and this is not an oversight: "each
+domain element has *exactly one* image" is a cardinality claim, and a
+commutative diagram can only ever equate two composites. The most characteristic
+thing about an aspect is the thing this notation cannot express — which is why
+§2.2 states functionality in prose and §2.2.3 has to work around it.
 
-== Why the invalid aspects are refutable
+== The tests
 
-§2.2.1 offers two arrows that look like aspects but are not: "a person has a
-child", and "a mechanical pencil uses a piece of lead". A person may have two children, or none. Because `functorial` demands
-exactly one image for every element of the domain type, no instance can exhibit
-either arrow, and Forge reports both corresponding tests as `unsat`. The rule is
-mechanically enforced rather than merely advised.
+#excerpt("test expect {", none)
+
+The two `is sat` tests are consistency checks: the first that the whole
+arrangement is realisable at all, the second that aspects need not be injective
+--- "two different men can point to the same height", §2.2.
+
+The three `is unsat` tests each negate one clause of `functorial` and confirm no
+instance survives. They are worth having as regression tests, since a weakened
+predicate would show up here immediately. They are not, however, refutations of
+the paper's invalid arrows, and the comments no longer claim they are. The model
+holds no labels, so "a person has a child" and "a person has as inner child a
+child" are the same object to it --- and §2.2.1 is explicit that the second one
+is a valid aspect.
 
 == What is deliberately absent
 
-*Facts / path equivalences (§2.3).* Modelling arbitrary declared equations needs
-paths, hence sequences of composable aspects. Nothing in this rung composes two
-paths, so the machinery is not yet earned. The diagram above is a fact about the
-meta-model, written in prose and checked by a test, not a `Fact` sig. When facts
-are needed, note that every example in the paper is a triangle or a square —
-encoding those shapes directly is far cheaper than general paths.
+*Facts / path equivalences (§2.3).* Nothing here composes two paths, so the
+sequence machinery is not earned. §4.1 makes the omission harmless rather than
+merely convenient: an olog is "a presentation of a category by generators
+(objects and arrows) and relations (path congruences)", so a fact-free olog
+presents the free category on its graph, and a functor out of a free category is
+determined by its action on generators. What the model checks is §4.2.2's *key
+diagram* --- an instance of a graph --- which coincides with Definition 3.2.3
+precisely when no facts are declared.
 
 *Multiple instances.* One Forge instance is one olog together with one functor.
 Quantifying over several functors on a shared schema needs an `Instance` sig,
-which §4 (communication between ologs) would require and this rung does not.
+which §4.2.2's satisfaction relation would require and this rung does not.
 
-*The rules of good practice (§2.1.1, §2.2.1).* "Begin with 'a' or 'an'", "yield
-an English sentence", "begin with a verb" — these constrain the text on boxes
-and arrows. They are conventions for the author, not structure a solver can
-check.
+*The rules of good practice (Rules 2.1.1 and 2.2.1).* Numbered environments in
+the paper rather than sections. They constrain the text on boxes and arrows, and
+are conventions for the author rather than structure a solver can check.
 
 == Running it
 
 ```sh
-racket olog.frg
+racket olog.frg          # or: frg check olog.frg
 ```
 
-The file sets `option run_sterling off`. Without it Forge opens the Sterling
-visualiser and waits on standard input when the run finishes, which looks
-exactly like a hang; there is nothing to visualise here anyway, since the file
-is all `test expect` and no `run`. Solving takes about five milliseconds, and
-the whole invocation about two seconds, nearly all of it Racket startup.
-
-The exit code is meaningful — `0` when every test passes, `1` when one fails —
-so this is safe to put in a check script. Adding `option verbose 0` silences
-the per-test statistics and the `Test passed` lines while still reporting
-failures, if you would rather have silence on success.
+Exit code `0` when every test passes, `1` when one fails, so this is safe in a
+check script. Solving takes about five milliseconds; the two seconds are Racket
+startup. `option verbose 0` silences the per-test lines while still reporting
+failures.
