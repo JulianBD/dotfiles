@@ -23,6 +23,14 @@ use ./store.nu
 
 const BASE = "https://opencode.ai/zen/v1"
 
+# Default model for every command here.
+#
+# Open weights by preference. kimi-k3 is a reasoning model, so it spends
+# output budget before emitting anything — see the --max-tokens notes below.
+# Other open families zen serves, should this one disappoint: glm-5.1,
+# minimax-m3, qwen3.6-plus, deepseek-v4-flash-free.
+const DEFAULT_MODEL = "kimi-k3"
+
 # The wire protocols this module knows how to speak.
 const PROTOCOLS = ["anthropic" "openai-responses" "google" "openai-chat"]
 
@@ -50,6 +58,11 @@ def session-names []: nothing -> list<string> {
 # suggestions rather than an error.
 def model-names []: nothing -> list<string> {
     try { models | get id } catch { [] }
+}
+
+# The default model, so other modules need not hardcode it.
+export def default-model []: nothing -> string {
+    $DEFAULT_MODEL
 }
 
 # Resolve the zen API key.
@@ -310,7 +323,7 @@ def request [
 # Piped input is appended to the prompt as context, under a `---` separator.
 export def "chat raw" [
     prompt: string                                        # User message
-    --model (-m): string@model-names = "claude-sonnet-5"  # Any id from `zen models`
+    --model (-m): string@model-names = $DEFAULT_MODEL     # Any id from `zen models`
     --system (-s): string                                 # System prompt
     --temperature (-t): float                             # Sampling temperature
     --max-tokens: int = 4096                              # Response length cap
@@ -330,7 +343,7 @@ export def "chat raw" [
 # Piped input is appended to the prompt as context, under a `---` separator.
 export def chat [
     prompt: string                                        # User message
-    --model (-m): string@model-names = "claude-sonnet-5"  # Any id from `zen models`
+    --model (-m): string@model-names = $DEFAULT_MODEL     # Any id from `zen models`
     --system (-s): string                                 # System prompt
     --temperature (-t): float                             # Sampling temperature
     --max-tokens: int = 4096                              # Response length cap
@@ -355,7 +368,7 @@ export def chat [
 # The record shape is provider-native.
 export def usage [
     prompt: string                                        # User message
-    --model (-m): string@model-names = "claude-sonnet-5"  # Any id from `zen models`
+    --model (-m): string@model-names = $DEFAULT_MODEL     # Any id from `zen models`
 ]: nothing -> record {
     let response: record = (request $prompt null $model null null 4096 null null)
     usage-of $response
@@ -389,7 +402,7 @@ def unfence []: string -> string {
 #   ls | zen cmd "delete the ones older than a year"
 export def cmd [
     request: string                                       # What you want, in English
-    --model (-m): string@model-names = "claude-sonnet-5"  # Any id from `zen models`
+    --model (-m): string@model-names = $DEFAULT_MODEL     # Any id from `zen models`
     --shell: string@shell-names = "bash"                  # Shell to target
 ]: [nothing -> string, string -> string] {
     let context: any = $in
@@ -443,7 +456,7 @@ const PROPOSAL_SCHEMA = {
 # with nothing usable in it.
 export def propose [
     request: string                                  # What you want, in English
-    --model (-m): string@model-names = "kimi-k3"     # Must route to openai-chat
+    --model (-m): string@model-names = $DEFAULT_MODEL # Must route to openai-chat
     --max-tokens: int = 2000                         # Includes reasoning tokens
 ]: [nothing -> record, string -> record] {
     let context: any = $in

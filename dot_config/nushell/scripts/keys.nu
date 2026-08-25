@@ -14,19 +14,17 @@
 
 use ./zen.nu
 
-# Model used by the keybindings. Small and fast matters more than clever here,
-# since the prompt blocks until the call returns. $ZEN_KEYS_MODEL overrides.
+# Model used by the keybindings, defaulting to whatever zen.nu defaults to.
+# $ZEN_KEYS_MODEL overrides, which is the knob to reach for if the prompt feels
+# slow — these calls block the prompt until they return.
+#
+# One model for both prose and proposals. An earlier version split them,
+# on the theory that a non-reasoning model could not leak its scratchpad into
+# an explanation. That theory was wrong: kimi-k2.6 reports reasoning tokens
+# too (186 against k3's 165 on the same prompt), so the split bought nothing
+# the schema does not already buy for `propose`.
 def keys-model []: nothing -> string {
-    $env.ZEN_KEYS_MODEL? | default "kimi-k3"
-}
-
-# Model used for prose. Deliberately not the same one: kimi-k3 is a reasoning
-# model and its scratchpad leaks into the message often enough to be a problem
-# when the message is meant to be read aloud to you. It stays the default for
-# `propose`, where the schema constrains the output and the leak cannot happen.
-# $ZEN_KEYS_PROSE_MODEL overrides.
-def keys-prose-model []: nothing -> string {
-    $env.ZEN_KEYS_PROSE_MODEL? | default "claude-sonnet-5"
+    $env.ZEN_KEYS_MODEL? | default (zen default-model)
 }
 
 # Render a proposal as something runnable from a nushell prompt.
@@ -102,7 +100,7 @@ export def explain []: nothing -> nothing {
 
     working "reading"
     let answer: string = try {
-        zen chat $subject --model (keys-prose-model) --max-tokens 500 --system "You explain shell commands.
+        zen chat $subject --model (keys-model) --max-tokens 500 --system "You explain shell commands.
 
 Given a command, say what it does in at most four short lines. Name each flag
 that is doing real work. Call out anything destructive, irreversible, or
