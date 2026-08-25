@@ -162,3 +162,111 @@ export def translate [
     let fields: record = (audio-fields "whisper-1" $format null $prompt $temperature)
     text-of (post-audio "translations" $path $fields) $format
 }
+
+# Where `transcribe save` reads its defaults from.
+def config-path []: nothing -> string {
+    let override = (http env-key "TRANSCRIBE_CONFIG")
+    if $override != null {
+        return ($override | path expand --no-symlink)
+    }
+    $nu.home-dir | path join ".config/nushell/transcribe.toml"
+}
+
+# Defaults for `transcribe save`, with built-ins when the file is absent.
+#
+# Read at call time rather than at parse time, so editing the config takes
+# effect without reloading the module.
+def config []: nothing -> record<directory: string, name_template: string> {
+    let defaults = {
+        directory: "~/Documents/kb/raw-transcripts",
+        name_template: "{date}_{slug}.{ext}"
+    }
+    let path: string = (config-path)
+    if not ($path | path exists) {
+        return $defaults
+    }
+    $defaults | merge (open $path | select -o directory name_template | compact --empty)
+}
+
+# Reduce arbitrary text to a filename-safe kebab-case slug.
+def slugify [
+    text: string  # Text to reduce
+]: nothing -> string {
+    $text
+    | str lowercase
+    | str replace --all --regex '[^a-z0-9]+' '-'
+    | str trim --char '-'
+}
+
+# Fill a name template's {tokens} from a record of values.
+def render-name [
+    template: string  # Template string, e.g. "{date}_{slug}.{ext}"
+    tokens: record    # Token names and their values
+]: nothing -> string {
+    $tokens
+    | transpose name value
+    | reduce --fold $template {|token, name|
+        $name | str replace --all $"{($token.name)}" $token.value
+    }
+}
+
+# Render the path `transcribe save` would write to, without calling the API.
+export def "transcribe path" [
+    path: string                                    # Audio file
+    --name (-n): string                             # Slug source; defaults to the audio filename
+    --model (-m): string@model-names = "whisper-1"  # Transcription model
+    --format (-f): string@format-names = "json"     # json | text | srt | vtt
+    --directory (-d): string                        # Override the configured directory
+]: nothing -> string {
+    let settings: record<directory: string, name_template: string> = (config)
+    let stem: string = ($path | path parse | get stem)
+    let target: string = (
+        (if $directory == null { $settings.directory } else { $directory })
+        | path expand --no-symlink
+    )
+    let tokens: record = {
+        date: (date now | format date "%Y-%m-%d"),
+        time: (date now | format date "%H-%M"),
+        slug: (slugify (if $name == null { $stem } else { $name })),
+        stem: $stem,
+        model: $model,
+        format: $format,
+        ext: (if $format in ["json" "text"] { "txt" } else { $format })
+    }
+    $target | path join (render-name $settings.name_template $tokens)
+}
+
+# Transcribe an audio file and save it, returning the path written.
+#
+# The directory and filename template come from the config file; see
+# `openai transcribe path` to preview the destination.
+export def "transcribe save" [
+    path: string                                    # Audio file
+    --name (-n): string                             # Slug source; defaults to the audio filename
+    --model (-m): string@model-names = "whisper-1"  # Transcription model
+    --format (-f): string@format-names = "json"     # json | text | srt | vtt
+    --language (-l): string                         # ISO-639-1 hint, e.g. en
+    --prompt (-p): string                           # Spelling/context hint for proper nouns
+    --temperature (-t): float                       # Sampling temperature
+    --directory (-d): string                        # Override the configured directory
+    --force                                         # Overwrite an existing transcript
+]: nothing -> string {
+    check-format $model $format
+    let destination: string = (
+        if $directory == null {
+            transcribe path $path --name $name --model $model --format $format
+        } else {
+            transcribe path $path --name $name --model $model --format $format --directory $directory
+        }
+    )
+    if ($destination | path exists) and (not $force) {
+        error make {msg: $"($destination) exists; pass --force to overwrite"}
+    }
+
+    let fields: record = (audio-fields $model $format $language $prompt $temperature)
+    let text: string = (text-of (post-audio "transcriptions" $path $fields) $format)
+
+    mkdir ($destination | path dirname)
+    $text | save --force $destination
+    $destination
+}

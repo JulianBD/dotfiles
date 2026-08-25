@@ -1,0 +1,18 @@
+# Defaults for `openai transcribe save`. Edit freely — this file is read at
+# call time, so changes take effect without reloading the module.
+#
+# Override the location of this file with $env.TRANSCRIBE_CONFIG.
+
+# Directory transcripts are written to. `~` is expanded.
+directory = "~/Documents/kb/raw-transcripts"
+
+# Filename template. Available tokens:
+#
+#   {date}    2026-08-24   — today, ISO order
+#   {time}    19-59        — hour-minute, safe for filenames
+#   {slug}    first-high-run — kebab-cased --name, else the audio filename
+#   {stem}    3324 Beech Ave 4 — audio filename without extension, verbatim
+#   {model}   whisper-1
+#   {format}  json | text | srt | vtt
+#   {ext}     txt for json/text, otherwise the format (srt, vtt)
+name_template = "{date}_{slug}.{ext}"
