@@ -21,6 +21,7 @@
 use ./http.nu
 use ./store.nu
 use ./schema.nu
+use ./skill.nu
 
 const BASE = "https://opencode.ai/zen/v1"
 
@@ -632,4 +633,69 @@ nothing else."
     )
     remember "olog" $model null ($text | str substring 0..<200) $markdown $response
     $markdown
+}
+
+# Run a skill over some text.
+#
+# The generic driver. A skill supplies the framing, the output shape and the
+# model; this supplies the messages, and everything specific lives in
+# configuration rather than here. `zen olog` and `zen propose` are the same
+# machinery with a name attached.
+#
+# Output "markdown" returns text. Output "json" sends the skill's schema as
+# response_format and returns the decoded record, checked against the contract
+# from that same schema.
+export def skill [
+    name: string                                    # A name from `skill list`
+    --model (-m): string@model-names                # Overrides the skill's own
+    --session: string@session-names                 # Continue a session
+]: [string -> any, nothing -> any] {
+    let input: any = $in
+    let k: record = (skill get $name)
+    let chosen: string = (
+        $model | default ($k | get -o model | default $DEFAULT_MODEL)
+    )
+    let text: string = ($input | default "" | into string)
+    if ($text | str trim | is-empty) and $name != "propose" { return "" }
+
+    let prior: list<record> = if $session == null { [] } else { store session load $session }
+    let wire: string = (protocol-for $chosen)
+
+    if $k.output == "markdown" {
+        let response: record = (
+            request $text null $chosen $k.instructions null $k.max_tokens null $prior
+        )
+        let reply: string = (
+            text-of $wire $response
+            | lines
+            | where {|line| not ($line | str trim | str starts-with "```") }
+            | str join "\n"
+            | str trim
+        )
+        remember $name $chosen $session ($text | str substring 0..<200) $reply $response
+        return $reply
+    }
+
+    if $wire != "openai-chat" {
+        error make {msg: $"skill ($name) returns json; ($chosen) speaks ($wire), not openai-chat"}
+    }
+    let schema_name: string = ($k | get -o schema | default $name)
+    let body: record = {
+        model: $chosen,
+        max_tokens: $k.max_tokens,
+        messages: (
+            [{role: "system", content: $k.instructions}]
+            | append $prior
+            | append {role: "user", content: $text}
+        ),
+        response_format: {
+            type: "json_schema",
+            json_schema: {name: $schema_name, strict: true, schema: (schema json $schema_name)}
+        }
+    }
+    let response: record = (send $wire $chosen $body)
+    let raw: string = (text-of $wire $response)
+    let decoded = ($raw | from json | schema check $schema_name)
+    remember $name $chosen $session ($text | str substring 0..<200) $raw $response
+    $decoded
 }
