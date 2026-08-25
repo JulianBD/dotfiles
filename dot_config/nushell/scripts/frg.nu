@@ -33,12 +33,15 @@ export def check [
         error make {msg: "no .frg files given, and none in the current directory"}
     }
 
-    $targets | each {|file|
-        let path: string = ($file | path expand --no-symlink)
-        if not ($path | path exists) {
-            error make {msg: $"no such file: ($path)"}
-        }
+    # Resolved before the loop: an `error make` inside `each` surfaces as
+    # "Eval block failed with pipeline input", burying the real reason.
+    let paths: list<string> = ($targets | each {|file| $file | path expand --no-symlink })
+    let missing: list<string> = ($paths | where {|path| not ($path | path exists) })
+    if ($missing | is-not-empty) {
+        error make {msg: $"no such file: ($missing | str join ', ')"}
+    }
 
+    $paths | each {|path|
         let result: record<exit_code: int, stdout: string, stderr: string> = (
             ^racket $path | complete
         )
