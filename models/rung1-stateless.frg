@@ -69,12 +69,12 @@ test expect {
 
   // The statelessness claim proper: no exchange reaches another exchange, at
   // any distance. There is no history to consult and no store to share. Unlike
-  // the guard above this one has content, since `reaches` is defined over
-  // instance data rather than over the schema, and the check is transitive.
+  // the guard above this one has content: drop `functorial` and it goes sat.
   //
-  // It is also not vacuous for want of room: `sameQuestionMayDifferInReply`
-  // below exhibits two distinct exchanges within the same bounds, so the
-  // unsat result is a real absence of paths, not a shortage of atoms.
+  // At this rung one step would already suffice, since no aspect has an
+  // exchange as codomain, so `^` is not doing work today. It is here so the
+  // test keeps its meaning once a later rung adds an arrow *into* `an
+  // exchange` — at which point the depth is the whole question.
   noExchangeReachesAnother: {
     schema
     functorial
@@ -94,19 +94,34 @@ test expect {
     some disj e1, e2: Element | {
       e1.isa = AnExchange
       e2.isa = AnExchange
+      e1.(asker.act) = e2.(asker.act)
       e1.(ask.act) = e2.(ask.act)
       e1.(responder.act) = e2.(responder.act)
       e1.(got.act) != e2.(got.act)
     }
   } for 8 Element is sat
 
-  // Why memory needs more than an arrow. The temptation is to add `an agent
-  // has as reply a reply`, but an agent taking part in several exchanges has
-  // several replies, so that arrow is not functional and `functorial` refuses
-  // it — the same refusal olog.frg records for `a person has a child`. §2.2.3
-  // gives the way out: introduce a type for the many-valued thing, `a list of
-  // replies`, and point at that instead. That is a rung of its own, and the
-  // same move the tool-calling rung will need, since a response has zero or
-  // many tool calls. No test here: the general claim is already tested in
-  // olog.frg, and restating it against this schema would only re-derive it.
+  // Why memory needs more than an arrow — and why this rung cannot yet say so.
+  // The temptation is to add `an agent has as reply a reply`. The intended
+  // relationship is not functional, since an agent taking part in several
+  // exchanges has several replies. But `functorial` does *not* refuse the
+  // arrow: adding it and asserting the awkward case — two exchanges, one
+  // responder, different replies — comes back sat. `functorial` only demands
+  // the agent have exactly one reply; nothing ties that reply to `got`.
+  //
+  // What would refuse it is a fact (§2.3): the path equivalence
+  // `responder ; agentReply = got`, which forces the agent's single reply to
+  // be every exchange's reply and collapses the two. This is the first place
+  // the fact-free omission in olog.frg actually bites, and it is the reason
+  // there is no test here. The general non-functionality claim is not a
+  // theorem this meta-model can state, because the model holds no labels and
+  // so cannot know which relationship an arrow is meant to denote.
+  //
+  // §2.2.3 raises `a father has a set of children` only to set it aside — the
+  // relationship between `a child` and `a set of children` "becomes an issue
+  // to deal with later" — and offers instead a span: a type for the relation
+  // R ⊆ A₁ × … × Aₙ with a projection aspect per leg. A span needs only a type
+  // and two aspects, so unlike facts it is expressible here today. That is the
+  // move the history rung wants, and the tool-calling rung after it, since a
+  // response has zero or many tool calls.
 }

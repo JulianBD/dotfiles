@@ -44,8 +44,12 @@ sig Aspect {
 // `one Type` makes the extensions pairwise disjoint, which Definition 3.2.3
 // does not require — there, I(x) and I(y) are arbitrary sets and may overlap,
 // as `a woman is a person` invites. Disjointness costs nothing up to
-// isomorphism, since elements can always be tagged by type, and it is what
-// §4.2.2's key diagrams assume.
+// isomorphism, since elements can always be tagged by type, and that tagging
+// is the whole justification. It is *not* something §4.2.2 assumes: a key
+// diagram sends each type to an arbitrary set, and the section's own extreme
+// case — "for any set A ∈ |Set| a constant key diagram ∆(A) : G → |Set|
+// satisfies any fact" — assigns the same set to every type, which `one Type`
+// makes unrepresentable.
 sig Element {
   isa: one Type
 }

@@ -120,9 +120,11 @@ The two `is sat` tests are consistency checks: the first that the whole
 arrangement is realisable at all, the second that aspects need not be injective
 --- "two different men can point to the same height", §2.2.
 
-The three `is unsat` tests each negate one clause of `functorial` and confirm no
-instance survives. They are worth having as regression tests, since a weakened
-predicate would show up here immediately. They are not, however, refutations of
+The three `is unsat` tests together pin all three clauses of `functorial`:
+deleting or weakening any one of them turns one of these tests sat, which is
+verified by mutation rather than assumed. The correspondence is not one-to-one
+--- `noElementHasTwoImages` catches damage to either of the first two clauses,
+and no test isolates the second on its own. They are not, however, refutations of
 the paper's invalid arrows, and the comments no longer claim they are. The model
 holds no labels, so "a person has a child" and "a person has as inner child a
 child" are the same object to it --- and §2.2.1 is explicit that the second one
