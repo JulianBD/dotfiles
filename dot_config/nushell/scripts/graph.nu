@@ -11,7 +11,7 @@
 # Where the store lives. The layers are kept separate under one root:
 #
 #     ~/Documents/kb/entries.jsonl   the graph -- append-only, the store
-#     ~/Documents/kb/obsidian/       the MyST projection -- regenerable
+#     ~/Documents/kb/kb-vault/       the MyST projection -- regenerable
 #     ~/Documents/kb/raw-transcripts/ capture -- primary, nothing maps into it
 #
 # The projection sits beside the store rather than inside it, so that deleting
@@ -22,7 +22,7 @@ export def home []: nothing -> string {
 
 # The projection target: what Obsidian opens.
 export def vault []: nothing -> string {
-    home | path join "obsidian"
+    home | path join "kb-vault"
 }
 
 export def log []: nothing -> string {
