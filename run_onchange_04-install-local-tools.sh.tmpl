@@ -33,7 +33,11 @@ mkdir -p "$INSTALLDIR"
   {{ end -}}
   {{ end -}}
   WORKDIR=$(mktemp -d)
-  trap 'rm -rf "$WORKDIR"' EXIT
+  # Go writes its module cache mode 0555, and rm -rf cannot remove a read-only
+  # directory. Without the chmod the trap fails, and under `set -e` that exit
+  # status aborts the whole script *after* a successful build -- skipping every
+  # section below. Verified 2026-08-25.
+  trap 'chmod -R u+w "$WORKDIR" 2>/dev/null || true; rm -rf "$WORKDIR"' EXIT
   git clone {{ $tool.repo | quote }} "$WORKDIR"
   cd "$WORKDIR"
   {{ if hasKey $tool "version" -}}
@@ -56,7 +60,13 @@ mkdir -p "$INSTALLDIR"
       exit 0
   fi
   mkdir -p "$(dirname "$DEST")"
-  git clone {{ $tool.repo | quote }} "$DEST"
+  # An upstream that has gone away must not abort provisioning: everything
+  # below this point in the script is unrelated to it. Warn and carry on, the
+  # same way a missing build dependency or link source does above.
+  if ! git clone {{ $tool.repo | quote }} "$DEST"; then
+      echo "  SKIP: {{ $name }} could not be cloned from {{ $tool.repo }}"
+      exit 0
+  fi
   echo "  {{ $name }} cloned to $DEST"
 )
 {{ end }}

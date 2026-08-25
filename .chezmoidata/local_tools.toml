@@ -38,14 +38,6 @@ repo = "https://github.com/gloathub/gobb.git"
 build = "env -u GOROOT -u GOTOOLCHAIN make install PREFIX=\"$HOME/.local\" GLOAT-VERSION=0.1.77"
 needs = ["make", "curl"]
 
-[cloned_repos.svns]
-repo = "https://github.com/JulianBD/svns.git"
-dest = "~/Code/svns"
-
-[local_links.svns]
-source = "~/Code/svns/svns.hs"
-dest = "~/bin"
-
 [local_links.tangle]
 source = "~/.config/dotfiles/tangle.janet"
 dest = "~/bin"
