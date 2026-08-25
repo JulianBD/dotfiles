@@ -583,3 +583,66 @@ export def "extract conflicts" []: table -> table {
         objects: ($group.rows | get object | uniq)
     } }
 }
+
+# Pass 2 of three: prose into olog sentences, still as prose.
+#
+#   zen chat "..." | zen olog                 # sentences, to read
+#   zen chat "..." | zen olog | zen extract   # ...and then structured
+#
+# Deliberately not schema-constrained. Asking for {subject, relation, object}
+# at this stage lets the model drop any fragment into any slot, which is where
+# the unnormalised subjects came from — `Chezmoi`, `source directory`,
+# `files prefixed with dot_` in one run. A sentence carries the discipline in
+# its own shape: Rule 2.1.1 says a type is a singular indefinite noun phrase,
+# so every endpoint has to begin with "a" or "an", and there is nowhere to put
+# a bare fragment.
+#
+# Structuring these into records is pass 3, and separate for a reason. Where a
+# noun phrase ends is a semantic question, not a lexical one: "a model id has
+# as prefix a provider key" reads to a regex as subject "a model", relation
+# "id has as prefix". So `zen extract` remains a model call, and it is a far
+# easier one against sentences already in this form than against raw prose.
+export def olog [
+    --model (-m): string@model-names = $DEFAULT_MODEL  # Cheap is the point
+    --max-tokens: int = 4000                           # Includes reasoning tokens
+]: string -> string {
+    let text: string = $in
+    if ($text | str trim | is-empty) { return "" }
+
+    let system: string = "You rewrite prose as an olog, in the sense of Spivak and Kent.
+
+Output plain lines and nothing else. No numbering, no bullets, no headings, no
+commentary, no code fences.
+
+Two kinds of line:
+
+  a type          e.g.  a source directory
+  an aspect       e.g.  a source directory is under a version control system
+
+Every type is a singular indefinite noun phrase beginning with `a` or `an`.
+Never a bare word, never a plural, never a proper noun on its own: write `a
+dotfile`, not `dotfiles`; `a chezmoi source directory`, not `Chezmoi`.
+
+Every aspect line reads as an English sentence and both of its endpoints are
+types, so each line begins with `a`/`an` and contains a second `a`/`an`
+starting the object.
+
+Name the same thing with exactly the same noun phrase every time.
+
+Only write a relationship as an aspect if each subject has exactly one object.
+If a subject relates to several objects, that is not an aspect: leave it out
+rather than writing it several times."
+
+    let response: record = (
+        request $text null $model $system null $max_tokens null null
+    )
+    let sentences: string = (
+        text-of (resolve-protocol $model null) $response
+        | lines
+        | where {|line| ($line | str trim) != "" }
+        | where {|line| not ($line | str trim | str starts-with "```") }
+        | str join "\n"
+    )
+    remember "olog" $model null ($text | str substring 0..<200) $sentences $response
+    $sentences
+}
