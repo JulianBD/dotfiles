@@ -90,9 +90,16 @@ check.
 == Running it
 
 ```sh
-racket olog.frg < /dev/null
+racket olog.frg
 ```
 
-The redirect matters: Forge opens the Sterling visualiser and waits on standard
-input when it finishes, so without it the process appears to hang. Solving
-itself takes about five milliseconds.
+The file sets `option run_sterling off`. Without it Forge opens the Sterling
+visualiser and waits on standard input when the run finishes, which looks
+exactly like a hang; there is nothing to visualise here anyway, since the file
+is all `test expect` and no `run`. Solving takes about five milliseconds, and
+the whole invocation about two seconds, nearly all of it Racket startup.
+
+The exit code is meaningful — `0` when every test passes, `1` when one fails —
+so this is safe to put in a check script. Adding `option verbose 0` silences
+the per-test statistics and the `Test passed` lines while still reporting
+failures, if you would rather have silence on success.

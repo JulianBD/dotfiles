@@ -13,6 +13,11 @@
 // constrain the English text on boxes and arrows rather than the structure —
 // "a type begins with 'a' or 'an'" is not a claim this model can carry.
 
+// Tests are the whole point of this file, so there is nothing to look at in
+// the visualiser; without this, Forge opens Sterling and waits on stdin when
+// the run finishes, which looks like a hang.
+option run_sterling off
+
 // §2.1 A type: a box, labelled with a singular indefinite noun phrase.
 sig Type {}
 
