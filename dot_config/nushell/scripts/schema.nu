@@ -62,6 +62,16 @@ export def json [
     evaluate $name "s.json_schema"
 }
 
+# A schema file that describes a document rather than a JSON type.
+#
+# Returns the whole record, since a document projection is configuration —
+# headings, a delimiter, an example — rather than a JSON Schema.
+export def document [
+    name: string  # Schema name
+]: nothing -> record {
+    evaluate $name "s"
+}
+
 # Check a value against a schema, returning it unchanged or raising.
 #
 # This is the half JSON Schema cannot do: a contract may relate one part of a

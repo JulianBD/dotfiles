@@ -1,12 +1,13 @@
+use ./schema.nu
+
 # Turn extracted entries into an olog.
 #
-#   zen chat "..." | zen extract | olog sentences
-#   zen chat "..." | zen extract | olog frg --name rung6-domain
+#   zen chat "..." | zen olog | olog parse
+#   zen chat "..." | zen olog | olog parse | olog frg --name rung6-domain
 #
-# `zen extract` produces entries — subject, relation, object. An olog wants
-# types and aspects: the distinct things being talked about, and the arrows
-# between them. That is a fold, not another model call, so nothing here talks
-# to a provider.
+# `zen olog` produces a markdown document; everything here reads it. No model
+# call: the document is delimited, so parsing it is deterministic. That was the
+# point of choosing delimited markdown over plain sentences.
 #
 # What this cannot decide is which arrows are aspects. An extracted relation
 # that is many-valued is a span, not an aspect (§2.2.3), and no fold can tell
@@ -55,15 +56,53 @@ def aspect-identifier [
     $"($head)($tail | str join '')"
 }
 
-# The distinct things the entries talk about, as types.
-export def types []: table -> table<phrase: string, id: string> {
-    let entries: table = $in
-    $entries
-    | get subject
-    | append ($entries | get object)
-    | uniq
-    | sort
-    | each {|phrase| {phrase: $phrase, id: (identifier $phrase)} }
+# Read an olog document into types and aspects.
+#
+# Deterministic. The delimiter is what makes it so — plain prose cannot be
+# split, since "a model id has as prefix a provider key" reads to any splitter
+# as subject "a model".
+#
+# Types are collected from the Types section *and* from the endpoints of every
+# aspect, so a type used but never declared is not lost.
+export def parse []: string -> record<types: list<string>, aspects: table> {
+    let doc: record = (schema document olog_document)
+    let lines: list<string> = ($in | lines | each {|l| $l | str trim })
+
+    let bullets: list<string> = (
+        $lines
+        | where {|l| $l starts-with "- " or $l starts-with "* " }
+        | each {|l| $l | str substring 2.. | str trim }
+    )
+
+    let aspects: table = (
+        $bullets
+        | where {|b| $b =~ ($doc.delimiter | str trim) }
+        | each {|b|
+            let parts: list<string> = (
+                $b | split row ($doc.delimiter | str trim) | each {|p| $p | str trim }
+            )
+            {
+                subject: ($parts | get -o 0 | default ""),
+                relation: ($parts | get -o 1 | default ""),
+                object: ($parts | get -o 2 | default "")
+            }
+        }
+        | where {|a| $a.subject != "" and $a.object != "" }
+    )
+
+    let declared: list<string> = (
+        $bullets | where {|b| not ($b =~ ($doc.delimiter | str trim)) }
+    )
+    let used: list<string> = (
+        ($aspects | get subject) ++ ($aspects | get object)
+    )
+
+    {types: ($declared ++ $used | uniq | sort), aspects: $aspects}
+}
+
+# The distinct things the olog talks about, as types.
+export def types []: record -> table<phrase: string, id: string> {
+    $in | get types | each {|phrase| {phrase: $phrase, id: (identifier $phrase)} }
 }
 
 # The arrows, with the types they run between.
@@ -72,8 +111,9 @@ export def types []: table -> table<phrase: string, id: string> {
 # object anywhere in the entries. Such an arrow is not an aspect: it is either
 # a contradiction or a genuinely many-valued relation, and which one is a
 # judgement this cannot make.
-export def aspects []: table -> table {
+export def aspects []: record -> table {
     $in
+    | get aspects
     | group-by relation
     | transpose relation rows
     | each {|group| {
@@ -91,8 +131,8 @@ export def aspects []: table -> table {
 }
 
 # The entries as olog sentences, one per line.
-export def sentences []: table -> list<string> {
-    $in | each {|e| $"($e.subject) ($e.relation) ($e.object)" }
+export def sentences []: record -> list<string> {
+    $in | get aspects | each {|e| $"($e.subject) ($e.relation) ($e.object)" }
 }
 
 # A Forge schema, ready to sit beside the hand-written rungs.
@@ -104,10 +144,10 @@ export def sentences []: table -> list<string> {
 # broken rather than under-specified.
 export def frg [
     --name: string = "extracted"  # Used in the header comment only
-]: table -> string {
-    let entries: table = $in
-    let ts: table = ($entries | types)
-    let asp: table = ($entries | aspects)
+]: record -> string {
+    let olog: record = $in
+    let ts: table = ($olog | types)
+    let asp: table = ($olog | aspects)
     let good: table = ($asp | where single)
     let ambiguous: table = ($asp | where not single)
 

@@ -584,24 +584,25 @@ export def "extract conflicts" []: table -> table {
     } }
 }
 
-# Pass 2 of three: prose into olog sentences, still as prose.
+# Pass 2: prose into an olog document, in markdown.
 #
-#   zen chat "..." | zen olog                 # sentences, to read
-#   zen chat "..." | zen olog | zen extract   # ...and then structured
+#   zen chat "..." | zen olog                # a markdown document
+#   zen chat "..." | zen olog | olog parse   # ...and then structured, no model
 #
-# Deliberately not schema-constrained. Asking for {subject, relation, object}
-# at this stage lets the model drop any fragment into any slot, which is where
-# the unnormalised subjects came from — `Chezmoi`, `source directory`,
-# `files prefixed with dot_` in one run. A sentence carries the discipline in
-# its own shape: Rule 2.1.1 says a type is a singular indefinite noun phrase,
-# so every endpoint has to begin with "a" or "an", and there is nowhere to put
-# a bare fragment.
+# Markdown rather than JSON because that is what models write well, and what a
+# person can read without tooling. Delimited rather than plain prose because
+# plain prose cannot be parsed: "a model id has as prefix a provider key" reads
+# to any splitter as subject "a model". One delimiter buys a deterministic
+# parse and removes a model call from the pipeline.
 #
-# Structuring these into records is pass 3, and separate for a reason. Where a
-# noun phrase ends is a semantic question, not a lexical one: "a model id has
-# as prefix a provider key" reads to a regex as subject "a model", relation
-# "id has as prefix". So `zen extract` remains a model call, and it is a far
-# easier one against sentences already in this form than against raw prose.
+# The prompt is deliberately short and shows an example instead of stating
+# rules. An earlier version demanded that every aspect be single-valued, and
+# the model spent its entire budget agonising over whether `scatters` is
+# functional and inventing types like `a value of about four`. That judgement —
+# aspect or span — is the one established in rung 5 as impossible to make from
+# the data, so it does not belong in the prompt. Many-valued relations are
+# emitted here and identified downstream by `olog aspects`, which reports them
+# rather than guessing.
 export def olog [
     --model (-m): string@model-names = $DEFAULT_MODEL  # Cheap is the point
     --max-tokens: int = 4000                           # Includes reasoning tokens
@@ -609,40 +610,26 @@ export def olog [
     let text: string = $in
     if ($text | str trim | is-empty) { return "" }
 
-    let system: string = "You rewrite prose as an olog, in the sense of Spivak and Kent.
+    let doc: record = (schema document olog_document)
+    let system: string = $"Rewrite the text as an olog, in markdown, in exactly this shape:
+($doc.example)
+Every entry begins with `a` or `an` and is a singular indefinite noun phrase:
+write `a dotfile`, not `dotfiles`; `a chezmoi source directory`, not `Chezmoi`.
 
-Output plain lines and nothing else. No numbering, no bullets, no headings, no
-commentary, no code fences.
-
-Two kinds of line:
-
-  a type          e.g.  a source directory
-  an aspect       e.g.  a source directory is under a version control system
-
-Every type is a singular indefinite noun phrase beginning with `a` or `an`.
-Never a bare word, never a plural, never a proper noun on its own: write `a
-dotfile`, not `dotfiles`; `a chezmoi source directory`, not `Chezmoi`.
-
-Every aspect line reads as an English sentence and both of its endpoints are
-types, so each line begins with `a`/`an` and contains a second `a`/`an`
-starting the object.
-
-Name the same thing with exactly the same noun phrase every time.
-
-Only write a relationship as an aspect if each subject has exactly one object.
-If a subject relates to several objects, that is not an aspect: leave it out
-rather than writing it several times."
+Separate the three parts of an aspect line with `($doc.delimiter | str trim)`.
+Name the same thing with the same phrase every time. Output the document and
+nothing else."
 
     let response: record = (
         request $text null $model $system null $max_tokens null null
     )
-    let sentences: string = (
+    let markdown: string = (
         text-of (resolve-protocol $model null) $response
         | lines
-        | where {|line| ($line | str trim) != "" }
         | where {|line| not ($line | str trim | str starts-with "```") }
         | str join "\n"
+        | str trim
     )
-    remember "olog" $model null ($text | str substring 0..<200) $sentences $response
-    $sentences
+    remember "olog" $model null ($text | str substring 0..<200) $markdown $response
+    $markdown
 }
