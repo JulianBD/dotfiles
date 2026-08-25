@@ -12,6 +12,7 @@
 # arguments, previews every .typ file in the current directory.
 export def preview [
     ...files: string  # Typst files; defaults to *.typ here
+    --title (-t): string  # Browser tab title; defaults to the filename
 ]: nothing -> table<file: string, job: int> {
     let targets: list<string> = if ($files | is-empty) {
         ls *.typ | get name
@@ -21,15 +22,22 @@ export def preview [
     if ($targets | is-empty) {
         error make {msg: "no .typ files given, and none in the current directory"}
     }
+    if $title != null and ($targets | length) > 1 {
+        error make {msg: "--title names a single tab; pass one file, or let each tab take its filename"}
+    }
 
     $targets | each {|file|
         let path: string = ($file | path expand --no-symlink)
         if not ($path | path exists) {
             error make {msg: $"no such file: ($path)"}
         }
+        # tinymist titles the tab after the input file unless told otherwise.
+        # The favicon is a data URI hardcoded in its served HTML, so tabs can
+        # differ by name but not by icon.
+        let tab: string = (if $title == null { $path | path basename } else { $title })
         {
             file: ($path | path basename),
-            job: (job spawn { ^tinymist preview --open $path })
+            job: (job spawn { ^tinymist preview --open --page-title $tab $path })
         }
     }
 }
