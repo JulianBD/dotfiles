@@ -17,6 +17,7 @@
 // by what it cannot reach: no history, no store, no other exchange. So the
 // tests are largely `unsat`, and the file is short.
 
+open "category.frg"
 open "olog.frg"
 
 option run_sterling off

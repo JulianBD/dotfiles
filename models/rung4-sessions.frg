@@ -8,6 +8,7 @@
 // therefore does not make any later call depend on it, which is rung 1's
 // statelessness restated in terms of what reaches the model rather than what
 // exists on disk.
+open "category.frg"
 open "olog.frg"
 
 one sig ARequest extends Type {}  // a request

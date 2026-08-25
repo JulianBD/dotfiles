@@ -12,6 +12,7 @@
 // result and zero results lacking a call. That perfect pairing is the fact
 // declared below, and it is a path equivalence rather than a cardinality
 // bound, which is why rung 1's fact-free meta-model could not state it.
+open "category.frg"
 open "olog.frg"
 
 // ── The Anthropic olog ──────────────────────────────────────────────────────

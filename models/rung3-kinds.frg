@@ -14,6 +14,7 @@
 // chat-completions feature; anthropic expresses the same idea through a forced
 // tool call and google through `responseSchema`. So the product is partial,
 // and this file is where that gets written down properly.
+open "category.frg"
 open "olog.frg"
 
 // A request carries both a kind and a protocol, and gets back one reply.
@@ -68,7 +69,7 @@ test expect {
     instance
     wellFormed
     some r: Element | r.isa = ARequest
-  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 2 Fact is sat
+  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 9 Arrow, 2 Fact is sat
 
   // The claim I had wrong. Kind and protocol are *not* independent: a pair may
   // simply have no support, which is `propose` over anthropic. Were they
@@ -86,7 +87,7 @@ test expect {
         s.(supportedProtocol.act) = p
       }
     }
-  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 2 Fact is sat
+  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 9 Arrow, 2 Fact is sat
 
   // ...and an unsupported pair cannot be requested. This is the check
   // `propose` performs before it reaches the wire, rather than letting the
@@ -105,7 +106,7 @@ test expect {
         t.(supportedProtocol.act) = r.(protocolOf.act)
       }
     }
-  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 2 Fact is unsat
+  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 9 Arrow, 2 Fact is unsat
 
   // The kind is unenforceable. No aspect runs from a reply to a kind, so two
   // requests of different kinds may come back with the very same reply and
@@ -122,7 +123,7 @@ test expect {
       r1.(kindOf.act)  != r2.(kindOf.act)
       r1.(replyOf.act)  = r2.(replyOf.act)
     }
-  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 2 Fact is sat
+  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 9 Arrow, 2 Fact is sat
 
   // The converse, so the previous test is not mistaken for something stronger:
   // one kind may equally be served over two protocols. The span is a genuine
@@ -138,5 +139,5 @@ test expect {
       s2.(supportedKind.act) = k
       s1.(supportedProtocol.act) != s2.(supportedProtocol.act)
     }
-  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 2 Fact is sat
+  } for 12 Element, 5 Type, 5 Aspect, 4 Path, 9 Arrow, 2 Fact is sat
 }

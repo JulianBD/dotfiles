@@ -33,6 +33,7 @@
 // So `coherent` is a constraint one *chooses* to apply to particular arrows,
 // not a validity condition on extraction. The tests below say what it does
 // when applied; they do not say it should always be.
+open "category.frg"
 open "olog.frg"
 
 one sig AMessage extends Type {}  // a message
@@ -90,7 +91,7 @@ test expect {
     timeIsOrdered
     coherent
     some t: Element | t.isa = ATriple
-  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 2 Fact is sat
+  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 10 Arrow, 2 Fact is sat
 
   // Lossy upward: one message may yield several triples.
   oneMessageYieldsManyTriples: {
@@ -102,7 +103,7 @@ test expect {
       t2.isa = ATriple
       t1.(source.act) = t2.(source.act)
     }
-  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 2 Fact is sat
+  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 10 Arrow, 2 Fact is sat
 
   // Lossy downward: a message may yield none at all. Extraction has no
   // obligation to be surjective onto the ledger, and most chat is not
@@ -115,7 +116,7 @@ test expect {
       m.isa = AMessage
       no t: Element | t.isa = ATriple and t.(source.act) = m
     }
-  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 2 Fact is sat
+  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 10 Arrow, 2 Fact is sat
 
   // The failure mode is real: two messages may yield triples that agree on
   // subject and arrow and disagree about the object. Nothing structural
@@ -135,7 +136,7 @@ test expect {
       t1.(arrow.act)   = t2.(arrow.act)
       t1.(object.act) != t2.(object.act)
     }
-  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 2 Fact is sat
+  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 10 Arrow, 2 Fact is sat
 
   // ...and it is exactly what consistency forbids. The detector is not new
   // machinery: this is the functionality requirement of an aspect, applied to
@@ -151,7 +152,7 @@ test expect {
       t1.(arrow.act)   = t2.(arrow.act)
       t1.(object.act) != t2.(object.act)
     }
-  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 2 Fact is unsat
+  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 10 Arrow, 2 Fact is unsat
 
   // Two messages may also *agree*, and consistency permits it. Without this
   // the test above would be coherent with reading "never assert the same
@@ -169,5 +170,5 @@ test expect {
       t1.(arrow.act)   = t2.(arrow.act)
       t1.(object.act)  = t2.(object.act)
     }
-  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 2 Fact is sat
+  } for 14 Element, 5 Type, 6 Aspect, 4 Path, 10 Arrow, 2 Fact is sat
 }
