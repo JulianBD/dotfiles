@@ -28,7 +28,14 @@ repo = "https://github.com/gloathub/gobb.git"
 # GOROOT must be cleared: mise exports it (go 1.25.6) and it overrides the
 # toolchain gloat vendors (go 1.25.7), giving "compile: version does not
 # match go tool version" for every package. Verified 2026-08-12.
-build = "env -u GOROOT -u GOTOOLCHAIN make install PREFIX=\"$HOME/.local\""
+# GLOAT-VERSION is pinned here rather than left to upstream. gobb's build
+# fetches a separate makes repo which pins the gloat version, and on
+# 2026-08-24 that pin was v0.1.78 while gloat's newest tag was v0.1.77 —
+# `fatal: Remote branch v0.1.78 not found in upstream origin`, and the whole
+# chezmoi apply failed with it. The pin lives outside gobb's tree and is
+# fetched fresh each build, so it is a moving target; a make command-line
+# variable overrides it. Raise this when gloat tags a newer release.
+build = "env -u GOROOT -u GOTOOLCHAIN make install PREFIX=\"$HOME/.local\" GLOAT-VERSION=0.1.77"
 needs = ["make", "curl"]
 
 [cloned_repos.svns]
