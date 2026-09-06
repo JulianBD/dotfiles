@@ -1,0 +1,41 @@
+#!/bin/bash
+# Work around broken Homebrew python@3.14 bottles that link pyexpat
+# against a libexpat newer than the macOS system copy
+# (_XML_SetAllocTrackerActivationThreshold missing from /usr/lib/libexpat).
+#
+# The fix is to build python@3.14 from source, which compiles pyexpat
+# against the system expat (2.7.x, symbol-free). Homebrew only honors
+# HOMEBREW_BUILD_FROM_SOURCE at install time; on `brew upgrade` a fresh
+# bottle is poured unless the formula's INSTALL_RECEIPT marks it as a
+# source build. So:
+#   1. Pre-install expat on fresh machines (brew bundle --no-upgrade
+#      won't add it later if some other package pulls it in first).
+#   2. Clear the source-build flags (built_as_bottle/poured_from_bottle)
+#      left by a manual `brew reinstall --build-from-source`, so upgrades
+#      still pour bottles. When a broken bottle reappears, rebuild from
+#      source:  brew reinstall --build-from-source python@3.14
+#      then clear the flags again (or just re-run chezmoi apply).
+set -euo pipefail
+
+BREW="{{ .brew_prefix }}/bin/brew"
+[ -x "$BREW" ] || exit 0
+eval "$("$BREW" shellenv)"
+
+if ! brew list --formula expat &>/dev/null; then
+    echo "Installing expat (needed to rebuild python@3.14 from source)..."
+    brew install expat || true
+fi
+
+# Drop stale source-build markers so brew upgrade can pour bottles again
+for receipt in "{{ .brew_prefix }}"/Cellar/python@*/*/INSTALL_RECEIPT.json; do
+    [ -f "$receipt" ] || continue
+    if grep -q '"built_as_bottle": false' "$receipt" 2>/dev/null; then
+        sed -i '' \
+            -e 's/"built_as_bottle": false/"built_as_bottle": true/' \
+            -e 's/"poured_from_bottle": false/"poured_from_bottle": true/' \
+            "$receipt"
+        echo "Cleared source-build flags: $receipt"
+    fi
+done
+
+exit 0
