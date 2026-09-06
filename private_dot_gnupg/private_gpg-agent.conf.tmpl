@@ -1,0 +1,8 @@
+# Native macOS passphrase prompt, with "Save in Keychain" support.
+# After the first unlock is saved, gpg-agent gets the passphrase silently.
+pinentry-program {{ .brew_prefix }}/bin/pinentry-mac
+
+# Cache the unlocked key for a day instead of the stock 10 min / 2 h, so a
+# fresh shell doesn't re-prompt every time the idle window lapses.
+default-cache-ttl 86400
+max-cache-ttl 86400
