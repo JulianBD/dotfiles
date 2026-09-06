@@ -4,16 +4,36 @@ set -euo pipefail
 
 eval "$({{ .brew_prefix }}/bin/brew shellenv)"
 
-if ! command -v python3 &>/dev/null; then
-    echo "python3 not installed yet, skipping theme apply"
-    exit 0
-fi
-
 DOTFILES_DIR="{{ .chezmoi.homeDir }}/.config/dotfiles"
 if [ ! -f "$DOTFILES_DIR/theme_db.py" ]; then
     echo "Theme scripts not deployed yet, skipping"
     exit 0
 fi
+
+# Pick an interpreter that can actually import the pipeline. `command -v`
+# is not enough: a Homebrew python bottle can be broken at runtime (e.g.
+# pyexpat linked against libexpat symbols the OS doesn't ship), and the
+# pipeline needs >= 3.10 for PEP 604 unions. Probe candidates in order.
+find_python() {
+    local candidates=()
+    command -v python3 &>/dev/null && candidates+=("$(command -v python3)")
+    candidates+=("{{ .chezmoi.homeDir }}"/.local/share/uv/python/*/bin/python3)
+    candidates+=(/usr/bin/python3)
+    local py
+    for py in "${candidates[@]}"; do
+        [ -x "$py" ] || continue  # also skips unexpanded globs
+        if "$py" -c "import sys; sys.path.insert(0, '$DOTFILES_DIR'); import generators" &>/dev/null; then
+            echo "$py"
+            return 0
+        fi
+    done
+    return 1
+}
+
+PYTHON=$(find_python) || {
+    echo "No working python3 found, skipping theme apply"
+    exit 0
+}
 
 # Clone Prot's theme repos on first run so the full db is available
 SOURCES_DIR="{{ .chezmoi.homeDir }}/.local/share/dotfiles/theme-sources"
@@ -34,8 +54,8 @@ else
 fi
 
 # A theme failure should not abort chezmoi apply
-echo "Applying theme: $THEME"
-python3 -c "
+echo "Applying theme: $THEME (via $PYTHON)"
+"$PYTHON" -c "
 import sys
 sys.path.insert(0, '$DOTFILES_DIR')
 from theme_db import build_db
