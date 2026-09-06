@@ -25,6 +25,11 @@ mise activate fish | source
 {{ range $k, $v := .shell.env -}}
 set -gx {{ $k }} {{ $v | quote }}
 {{ end -}}
+{{ if .work_apps -}}
+# tfenv: work terraform releases predate darwin-arm64, so fetch x86_64 builds
+# and run them under Rosetta. Work-only: a personal arm64 machine wants native.
+set -gx TFENV_ARCH amd64
+{{ end -}}
 
 # --- Secrets (from gopass, gated per-machine by feature toggles) ---
 {{ if .github_token -}}
@@ -62,8 +67,10 @@ alias {{ .cmd }} {{ .expand | quote }}
 
 # --- Fish-specific aliases (bass requires fish) ---
 alias tf "bass scripts/iterraform.sh"
-alias copilot "env SHELL=/opt/homebrew/bin/bash copilot"
+alias copilot "env SHELL={{ .brew_prefix }}/bin/bash copilot"
+{{ if .work_apps -}}
 alias eks-control-worker "~/working/tio-hm-ce-eks-control-worker/start-console.sh"
+{{ end -}}
 
 # --- Zoxide ---
 if type -q zoxide

@@ -18,6 +18,11 @@ fi
 {{ range $k, $v := .shell.env -}}
 export {{ $k }}={{ $v | quote }}
 {{ end -}}
+{{ if .work_apps -}}
+# tfenv: work terraform releases predate darwin-arm64, so fetch x86_64 builds
+# and run them under Rosetta. Work-only: a personal arm64 machine wants native.
+export TFENV_ARCH=amd64
+{{ end -}}
 
 # --- Secrets (from gopass, gated per-machine by feature toggles) ---
 {{ if .github_token -}}

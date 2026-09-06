@@ -8,7 +8,6 @@ shell:
     BAT_THEME: "base16"
     IGNORE_AUTH_TEST: "true"
     IGNORE_HOST_CONF: "true"
-    TFENV_ARCH: "amd64"
     GODEBUG: "asyncpreemptoff=1"
     # Broad switch: covers CLAUDE_CODE_SKILLS + CLAUDE_CODE_PROMPT. opencode can't
     # use a Claude subscription anyway, and without this it slurps every skill under
