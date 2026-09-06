@@ -9,8 +9,13 @@
 # unconditionally, so it is the dependable place.
 #
 # No trailing `*` on the `use` lines: that would strip the prefixes and
-# collide, since zen and openai both export `key`, and bare `text`/`check`/
-# `preview` are too generic.
+# collide, since bare `key`/`text`/`check`/`preview` are too generic to hand
+# out to any one module.
+#
+# audio.nu is the exception, imported by name list rather than by prefix. Its
+# exports are already unambiguous — `transcribe`, `translate`, `openai-key` —
+# so a prefix would only repeat them. The file is named `audio` because a
+# nushell module cannot export a command sharing its own name.
 
 $env.config.buffer_editor = "hx"
 $env.config.show_banner = false
@@ -20,7 +25,14 @@ use ~/.config/nushell/scripts/store.nu
 use ~/.config/nushell/scripts/keys.nu
 use ~/.config/nushell/scripts/olog.nu
 use ~/.config/nushell/scripts/skill.nu
-use ~/.config/nushell/scripts/openai.nu
+use ~/.config/nushell/scripts/audio.nu [
+    "transcribe"
+    "transcribe detailed"
+    "transcribe path"
+    "transcribe save"
+    "translate"
+    "openai-key"
+]
 use ~/.config/nushell/scripts/pdf.nu
 use ~/.config/nushell/scripts/typst.nu
 use ~/.config/nushell/scripts/frg.nu

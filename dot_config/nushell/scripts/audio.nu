@@ -1,11 +1,20 @@
-# openai — the bits opencode zen does not proxy. Right now that means audio:
-# zen serves no whisper/transcription models, so these talk to api.openai.com.
+# audio — speech to text, the one thing opencode zen does not proxy: zen serves
+# no whisper models, so these talk to api.openai.com directly.
 #
-#   use openai.nu
-#   openai transcribe recording.m4a
-#   openai transcribe interview.mp3 --format srt | save interview.srt
-#   openai transcribe detailed interview.mp3 | get segments
-#   ls *.m4a | each {|file| openai transcribe $file.name }
+# The commands are imported unprefixed (see config.nu), so they read as what
+# they do rather than as whose API they happen to call. The file is `audio`
+# rather than `transcribe` only because nushell forbids a module from
+# exporting a command sharing its own name:
+#
+#   transcribe recording.m4a
+#   transcribe interview.mp3 --format srt | save interview.srt
+#   transcribe detailed interview.mp3 | get segments
+#   transcribe save recording.m4a
+#   ls *.m4a | each {|file| transcribe $file.name }
+#
+# Audio is transcoded to 16 kHz mono Opus by ffmpeg before upload, since raw
+# phone recordings are much larger than a speech model needs; pass
+# --no-compress to send the file as-is.
 #
 # Uploads go through `http upload` (see http.nu), which shells out to curl —
 # nushell's native multipart cannot set a part filename, and OpenAI infers the
@@ -40,9 +49,12 @@ def model-names []: nothing -> list<string> {
 # $env.OPENAI_API_KEY wins, else `op read` of the reference in
 # $env.OPENAI_API_KEY_OP.
 #
+# Named in full rather than as a bare `key`: this is imported without a module
+# prefix, and zen.nu exports its own `key`.
+#
 # No output type annotation: the final expression is an `error make`, which
 # nushell type-checks as an error rather than the declared string.
-export def key [] {
+export def openai-key [] {
     let from_environment = (http env-key "OPENAI_API_KEY")
     if $from_environment != null {
         return $from_environment
@@ -84,11 +96,36 @@ def audio-fields [
     | merge (if $temperature == null { {} } else { {temperature: $temperature} })
 }
 
+# Downmix an audio file to 16 kHz mono Opus in a temp .ogg, returning its path.
+#
+# Phone recordings are 48 kHz stereo AAC, which is far more than a speech model
+# consumes and large enough that an hour of it trips the 25 MB upload cap.
+# Opus at 16 kbps holds everything whisper listens to at roughly a tenth the
+# size, so the upload is faster and long recordings stop needing a manual
+# shrink step. The `.ogg` suffix matters: OpenAI infers the container from the
+# multipart filename.
+def compress-audio [
+    path: string  # Source audio file
+]: nothing -> string {
+    let destination: string = (mktemp --tmpdir --suffix ".ogg" "openai-audio-XXXXXX")
+    let result: record<exit_code: int, stdout: string, stderr: string> = (
+        ^ffmpeg -hide_banner -loglevel error -y -i $path
+            -vn -ar 16000 -ac 1 -c:a libopus -b:a 16k $destination
+        | complete
+    )
+    if $result.exit_code != 0 {
+        rm --force $destination
+        error make {msg: $"ffmpeg failed on ($path): ($result.stderr | str trim)"}
+    }
+    $destination
+}
+
 # Upload audio to one of the /v1/audio routes, returning the raw response body.
 def post-audio [
-    route: string  # transcriptions | translations
-    path: string   # Audio file to upload
+    route: string   # transcriptions | translations
+    path: string    # Audio file to upload
     fields: record  # Multipart form fields
+    compress: bool  # Transcode to 16 kHz mono Opus first
 ]: nothing -> string {
     # Checked here as well as in `http upload`: the header record below resolves
     # the API key eagerly, so without this a missing file reports "no openai key".
@@ -100,12 +137,33 @@ def post-audio [
         error make {msg: $"no such file: ($file)($hint)"}
     }
 
-    (
-        http upload $"($BASE)/audio/($route)" $file
-        --headers {Authorization: $"Bearer (key)"}
-        --fields $fields
-        --label "openai"
+    # ffmpeg is optional: without it the original file goes up as before, and
+    # `http upload` still refuses anything over the cap with a shrink hint.
+    let upload: string = (
+        if $compress and (which ffmpeg | is-not-empty) {
+            compress-audio $file
+        } else {
+            $file
+        }
     )
+
+    # try/catch rather than a bare call so a failed request still removes the
+    # temp file; the error is re-raised unchanged.
+    let body: any = (
+        try {
+            (
+                http upload $"($BASE)/audio/($route)" $upload
+                --headers {Authorization: $"Bearer (openai-key)"}
+                --fields $fields
+                --label "openai"
+            )
+        } catch {|failure|
+            if $upload != $file { rm --force $upload }
+            error make {msg: $failure.msg}
+        }
+    )
+    if $upload != $file { rm --force $upload }
+    $body
 }
 
 # Decode a response body to text: `json` wraps it, the rest are already text.
@@ -128,10 +186,11 @@ export def transcribe [
     --language (-l): string                   # ISO-639-1 hint, e.g. en — improves accuracy
     --prompt (-p): string                     # Spelling/context hint for proper nouns
     --temperature (-t): float                 # Sampling temperature
+    --no-compress                             # Upload the original file, skipping the ffmpeg step
 ]: nothing -> string {
     check-format $model $format
     let fields: record = (audio-fields $model $format $language $prompt $temperature)
-    text-of (post-audio "transcriptions" $path $fields) $format
+    text-of (post-audio "transcriptions" $path $fields (not $no_compress)) $format
 }
 
 # Transcribe an audio file with timing detail (verbose_json).
@@ -142,11 +201,16 @@ export def "transcribe detailed" [
     --language (-l): string  # ISO-639-1 hint, e.g. en — improves accuracy
     --prompt (-p): string    # Spelling/context hint for proper nouns
     --temperature (-t): float  # Sampling temperature
+    --no-compress              # Upload the original file, skipping the ffmpeg step
 ]: nothing -> record {
     let fields: record = (
         audio-fields "whisper-1" "verbose_json" $language $prompt $temperature
     )
-    post-audio "transcriptions" $path $fields | from json | http unwrap "openai"
+    (
+        post-audio "transcriptions" $path $fields (not $no_compress)
+        | from json
+        | http unwrap "openai"
+    )
 }
 
 # Transcribe an audio file and translate it to English.
@@ -157,10 +221,11 @@ export def translate [
     --format (-f): string@format-names = "json"  # json | text | srt | vtt
     --prompt (-p): string                        # Spelling/context hint for proper nouns
     --temperature (-t): float                    # Sampling temperature
+    --no-compress                                # Upload the original file, skipping the ffmpeg step
 ]: nothing -> string {
     check-format "whisper-1" $format
     let fields: record = (audio-fields "whisper-1" $format null $prompt $temperature)
-    text-of (post-audio "translations" $path $fields) $format
+    text-of (post-audio "translations" $path $fields (not $no_compress)) $format
 }
 
 # Where `transcribe save` reads its defaults from.
@@ -178,8 +243,8 @@ def config-path []: nothing -> string {
 # effect without reloading the module.
 def config []: nothing -> record<directory: string, name_template: string> {
     let defaults = {
-        directory: "~/Documents/kb/raw-transcripts",
-        name_template: "{date}_{slug}.{ext}"
+        directory: "~/Documents/kb/kb-vault/captures",
+        name_template: "{date}/{hhmm}_transcript_{slug}.{ext}"
     }
     let path: string = (config-path)
     if not ($path | path exists) {
@@ -227,19 +292,26 @@ export def "transcribe path" [
     let tokens: record = {
         date: (date now | format date "%Y-%m-%d"),
         time: (date now | format date "%H-%M"),
+        hhmm: (date now | format date "%H%M"),
         slug: (slugify (if $name == null { $stem } else { $name })),
         stem: $stem,
         model: $model,
         format: $format,
-        ext: (if $format in ["json" "text"] { "txt" } else { $format })
+        # `md`, not `txt`: the transcript lands in an Obsidian vault, where a
+        # non-.md file is invisible to search, links and the indexer. srt/vtt
+        # keep their own extension — they are subtitle files, not documents.
+        ext: (if $format in ["json" "text"] { "md" } else { $format })
     }
+    # A template may contain `/` — the vault's capture scheme puts each day in
+    # its own folder — and `path join` treats that as nesting. `transcribe
+    # save` mkdirs the dirname, so the day folder is created on demand.
     $target | path join (render-name $settings.name_template $tokens)
 }
 
 # Transcribe an audio file and save it, returning the path written.
 #
 # The directory and filename template come from the config file; see
-# `openai transcribe path` to preview the destination.
+# `transcribe path` to preview the destination.
 export def "transcribe save" [
     path: string                                    # Audio file
     --name (-n): string                             # Slug source; defaults to the audio filename
@@ -250,6 +322,7 @@ export def "transcribe save" [
     --temperature (-t): float                       # Sampling temperature
     --directory (-d): string                        # Override the configured directory
     --force                                         # Overwrite an existing transcript
+    --no-compress                                   # Upload the original file, skipping the ffmpeg step
 ]: nothing -> string {
     check-format $model $format
     let destination: string = (
@@ -264,7 +337,9 @@ export def "transcribe save" [
     }
 
     let fields: record = (audio-fields $model $format $language $prompt $temperature)
-    let text: string = (text-of (post-audio "transcriptions" $path $fields) $format)
+    let text: string = (
+        text-of (post-audio "transcriptions" $path $fields (not $no_compress)) $format
+    )
 
     mkdir ($destination | path dirname)
     $text | save --force $destination
