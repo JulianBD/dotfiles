@@ -10,6 +10,24 @@ if ! command -v brew &>/dev/null; then
 fi
 eval "$($BREW_PREFIX/bin/brew shellenv)"
 
+# Trust third-party taps before bundle/services can load their formulae.
+# Derived from the Brewfile's tap lines so the list stays in sync.
+TAPS=(
+{{ range (splitList "\n" (include "dot_Brewfile.tmpl")) -}}
+{{   if . -}}
+{{     $m := regexFind "^tap \"([^\"]+)\"" . -}}
+{{     if $m -}}
+{{       $t := regexReplaceAll "^tap \"([^\"]+)\".*" $m "${1}" -}}
+    {{ $t | quote }}
+{{     end -}}
+{{   end -}}
+{{ end -}}
+)
+if [ ${#TAPS[@]} -gt 0 ]; then
+    echo "Trusting taps: ${TAPS[*]}"
+    brew trust --tap "${TAPS[@]}" || echo "brew trust reported failures, continuing"
+fi
+
 echo "Running brew bundle..."
 brew bundle --global --no-upgrade || {
     echo "brew bundle reported failures (font conflicts are expected if already installed)"
