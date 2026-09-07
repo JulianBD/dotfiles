@@ -1,0 +1,16 @@
+#!/bin/bash
+# (Re)load the weekly mise-prune LaunchAgent so it tracks the deployed plist.
+set -euo pipefail
+
+PLIST="{{ .chezmoi.homeDir }}/Library/LaunchAgents/com.dotfiles.mise-prune.plist"
+UID_GUI="gui/$(id -u)"
+
+if [ ! -f "$PLIST" ]; then
+    exit 0
+fi
+
+# Unload (ignore if not loaded), then load fresh
+launchctl bootout "$UID_GUI" "$PLIST" 2>/dev/null || true
+launchctl bootstrap "$UID_GUI" "$PLIST"
+
+echo "Loaded mise-prune LaunchAgent (weekly, Sun 03:30)"

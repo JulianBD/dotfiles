@@ -11,3 +11,9 @@ fi
 
 echo "Installing mise tools..."
 mise install --yes
+
+# Clear stale tool versions after each install so old majors don't
+# accumulate (the recurring disk-space culprit). The weekly LaunchAgent
+# additionally prunes on a schedule.
+ echo "Pruning stale mise versions..."
+mise prune --yes || true
